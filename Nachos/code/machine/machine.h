@@ -25,6 +25,7 @@
 #include "utility.h"
 #include "translate.h"
 #include "disk.h"
+#include "bitmap.h"
 
 // Definitions related to the size, and format of user memory
 
@@ -49,8 +50,10 @@ enum ExceptionType { NoException,           // Everything ok!
 		     OverflowException,     // Integer overflow in add or sub.
 		     IllegalInstrException, // Unimplemented or reserved instr.
 		     
-		     NumExceptionTypes
+		     NumExceptionTypes,
+			 TLBException
 };
+
 
 // User program CPU state.  The full set of MIPS registers, plus a few
 // more because we need to be able to start/stop a user program between
@@ -156,6 +159,20 @@ class Machine {
     char *mainMemory;		// physical memory to store user program,
 				// code and data, while executing
     int registers[NumTotalRegs]; // CPU registers, for executing user programs
+
+
+
+//----------Lab 2 TLB ---------
+#ifdef USE_TLB
+    int TLBMiss;
+	int TLBHit;
+#endif
+//------------------------------
+
+//--------Lab 2 BitMap---------
+#ifdef USE_BITMAP
+	BitMap *bitmap;
+#endif 
 
 
 // NOTE: the hardware translation of virtual addresses in the user program

@@ -68,10 +68,14 @@ const char* TStoString[] = {"JUST_CREATED", "RUNNING", "READY", "BLOCKED"};
 printf("Thread(uid=%d,tid=%d,name=%s,status=%s) is created SUCCESSFULLY! \n",userId,threadId,threadName,TStoString[status]);
   }
 Thread::Thread(char* threadName,int pri):Thread(threadName,pri,0)
-{
+{ 
 }
 
 Thread::Thread(char* threadName):Thread(threadName,0,0){
+    #ifdef USE_PREEMPTIVE
+    printf("--------------- PREEMPTIVE SCHEDULE------------\n");
+    priority = 10;
+    #endif 
     
 }
 
@@ -99,6 +103,12 @@ Thread::~Thread()
     
     if (stack != NULL)
 	DeallocBoundedArray((char *) stack, StackSize * sizeof(int));
+
+ #ifdef USER_PROGRAM
+    if(this->space != NULL) delete this->space;
+  
+#endif
+    printf("Thread: %s DELETED SUCCESSFULLY !\n",this->name);
    
 }
 

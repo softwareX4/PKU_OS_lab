@@ -14,6 +14,18 @@
 #include "addrspace.h"
 #include "synch.h"
 
+
+void BitMapThread(int dummy){
+    	printf("============cur:%s============\nVPN\tPPN\tVALID\n",currentThread->getName());
+for(int i = 0; i < machine->pageTableSize;++i){
+		printf("%d\t%d\t%d\n",machine->pageTable[i].virtualPage,machine->pageTable[i].physicalPage,machine->pageTable[i].valid);
+}
+    printf("start running thread : %s  \n",currentThread->getName());
+    machine->Run();		
+   
+}
+
+
 //----------------------------------------------------------------------
 // StartProcess
 // 	Run a user program.  Open the executable, load it into
@@ -32,13 +44,33 @@ StartProcess(char *filename)
     }
     space = new AddrSpace(executable);    
     currentThread->space = space;
+    printf("cur thread name: %s \n",currentThread->getName());
 
     delete executable;			// close file
 
-    space->InitRegisters();		// set the initial register values
-    space->RestoreState();		// load page table register
+//-------Lab 2  BITMAP-------
+ Thread *t = new Thread("BitMap Test",0);
+ OpenFile *executable2 = fileSystem->Open(filename);
+    AddrSpace *space2;
 
-    machine->Run();			// jump to the user progam
+    if (executable2 == NULL) {
+	printf("Unable to open file %s\n", filename);
+	return;
+    } 
+    space2 = new AddrSpace(executable2);    
+    t->space = space2;
+    delete executable2;			// close file
+
+    t->space->InitRegisters();		
+    t->space->RestoreState();	
+    t->Fork(BitMapThread,(void*)1);
+    
+    //t->Finish();
+    printf("======return to main==========\n");
+
+    currentThread->space->InitRegisters();		
+    currentThread->space->RestoreState();
+     machine->Run();			// jump to the user progam
     ASSERT(FALSE);			// machine->Run never returns;
 					// the address space exits
 					// by doing the syscall "exit"

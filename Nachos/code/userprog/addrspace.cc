@@ -14,11 +14,11 @@
 // Copyright (c) 1992-1993 The Regents of the University of California.
 // All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
-
+ 
 #include "copyright.h"
 #include "system.h"
 #include "addrspace.h"
-#include "noff.h"
+#include "noff.h" 
 #ifdef HOST_SPARC
 #include <strings.h>
 #endif
@@ -85,11 +85,19 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
+                    printf("Initializing address space, num pages %d, size %d\n", 
+					numPages, size);
 // first, set up the translation 
+
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
 	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-	pageTable[i].physicalPage = i;
+    #ifdef USE_BITMAP    
+    pageTable[i].physicalPage = machine->bitmap->Find();
+    #else
+    pageTable[i].physicalPage = i;
+    #endif
+    printf("Allocate physical page # :%d \n",pageTable[i].physicalPage);
 	pageTable[i].valid = TRUE;
 	pageTable[i].use = FALSE;
 	pageTable[i].dirty = FALSE;
@@ -100,20 +108,44 @@ AddrSpace::AddrSpace(OpenFile *executable)
     
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment
-    bzero(machine->mainMemory, size);
+  //  bzero(machine->mainMemory, size);
 
 // then, copy in the code and data segments into memory
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
-			noffH.code.size, noffH.code.inFileAddr);
+            printf("Initializing code segment, at 0x%x, size %d\n", 
+			noffH.code.virtualAddr, noffH.code.size);
+
+         //-----------Lab 2 BITMAP -------------
+         int pos = noffH.code.inFileAddr;
+         for(int j = 0; j < noffH.code.size;++j){
+             int cur_vpn = (noffH.code.virtualAddr + j ) / PageSize;
+             int cur_offset = (noffH.code.virtualAddr + j ) % PageSize;
+             int paddr = pageTable[cur_vpn].physicalPage * PageSize + cur_offset;
+             executable -> ReadAt(&(machine->mainMemory[paddr]),1,pos++);
+         }   
+            
+       // executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
+		//	noffH.code.size, noffH.code.inFileAddr);
     }
     if (noffH.initData.size > 0) {
         DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
 			noffH.initData.virtualAddr, noffH.initData.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
-			noffH.initData.size, noffH.initData.inFileAddr);
+            printf("Initializing data segment, at 0x%x, size %d\n", 
+			noffH.initData.virtualAddr, noffH.initData.size);
+        //executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
+			//noffH.initData.size, noffH.initData.inFileAddr);
+            
+         //-----------Lab 2 BITMAP -------------
+         int pos = noffH.initData.inFileAddr;
+         for(int j = 0; j < noffH.initData.size;++j){
+             int cur_vpn = (noffH.initData.virtualAddr + j ) / PageSize;
+             int cur_offset = (noffH.initData.virtualAddr + j ) % PageSize;
+             int paddr = pageTable[cur_vpn].physicalPage * PageSize + cur_offset;
+             executable -> ReadAt(&(machine->mainMemory[paddr]),1,pos++);
+         }   
+           
     }
 
 }
@@ -125,6 +157,17 @@ AddrSpace::AddrSpace(OpenFile *executable)
 
 AddrSpace::~AddrSpace()
 {
+    
+    #ifdef USE_BITMAP
+    for(int i = 0; i < machine->pageTableSize;++i){
+        if(machine->pageTable[i].valid){
+            machine->bitmap->Clear(machine->pageTable[i].physicalPage);
+            printf("Free physical page # %d \n",pageTable[i].physicalPage);
+             
+        }
+    }
+
+    #endif
    delete pageTable;
 }
 
@@ -180,7 +223,17 @@ void AddrSpace::SaveState()
 //----------------------------------------------------------------------
 
 void AddrSpace::RestoreState() 
-{
+{/*
+    	printf("===============MACHINE ==============\nVPN\tPPN\tVALID\n");
+for(int i = 0; i < machine->pageTableSize;++i){
+		printf("%d\t%d\t%d\n",machine->pageTable[i].virtualPage,machine->pageTable[i].physicalPage,machine->pageTable[i].valid);
+}
+    	printf("===================cur thread  %s==================\nVPN\tPPN\tVALID\n",currentThread->getName());
+for(int i = 0; i < numPages;++i){
+		printf("%d\t%d\t%d\n",pageTable[i].virtualPage,pageTable[i].physicalPage,pageTable[i].valid);
+}*/
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
+    
+
 }

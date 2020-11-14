@@ -26,13 +26,13 @@ static void Mult(int a, int b, bool signedArith, int* hiPtr, int* loPtr);
 //	This routine is re-entrant, in that it can be called multiple
 //	times concurrently -- one for each thread executing user code.
 //----------------------------------------------------------------------
-
+ 
 void
 Machine::Run()
 {
     Instruction *instr = new Instruction;  // storage for decoded instruction
 
-    if(DebugIsEnabled('m'))
+    if(DebugIsEnabled('m')) 
         printf("Starting thread \"%s\" at time %d\n",
 	       currentThread->getName(), stats->totalTicks);
     interrupt->setStatus(UserMode);
@@ -100,7 +100,12 @@ Machine::OneInstruction(Instruction *instr)
 
     // Fetch instruction 
     if (!machine->ReadMem(registers[PCReg], 4, &raw))
-	return;			// exception occurred
+	{printf("fetch instr failed \n");
+		return;
+	}
+	//return;			// exception occurred
+
+
     instr->value = raw;
     instr->Decode();
 
@@ -315,7 +320,7 @@ Machine::OneInstruction(Instruction *instr)
 	// word boundary.  Also, the little endian/big endian swap code would
         // fail (I think) if the other cases are ever exercised.
 	ASSERT((tmp & 0x3) == 0);  
-
+	
 	if (!machine->ReadMem(tmp, 4, &value))
 	    return;
 	if (registers[LoadReg] == instr->rt)

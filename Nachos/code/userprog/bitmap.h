@@ -30,7 +30,7 @@
 // for instance, disk sectors, or main memory pages.
 // Each bit represents whether the corresponding sector or page is
 // in use or free.
-
+ 
 class BitMap {
   public:
     BitMap(int nitems);		// Initialize a bitmap, with "nitems" bits

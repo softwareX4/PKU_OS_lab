@@ -155,21 +155,29 @@ priThread(int which)
 // if preemptive,use priThread and note off code in scheduler.cc/Scheduler::ReadyToRun
 //   and change Thread:non-parameter constructor 's pri = 10 (because 0 is supreme pri)
 //   main will never Relinquish CPU
-//if not preemptive , use TSThread 
+//if not preemptive , use TSThread  
 //----------------------------------------------------------------------
 void priTest(){
-     DEBUG('t', "Entering Lab1 Exercise5");
+     DEBUG('t', "Entering Lab1 Exercise5"); 
 
     Thread *t1 = new Thread("high ",0);
     Thread *t2 = new Thread("mid ",5);
     Thread *t3 = new Thread("low",30);
+#ifdef USE_PREEMPTIVE
+    t2->Fork(priThread, (void*)0);
+    t1->Fork(priThread, (void*)0);
+    t3->Fork(priThread, (void*)0);
+    priThread(0);
+#else
 
     t2->Fork(TSThread, (void*)0);
     t1->Fork(TSThread, (void*)0);
     t3->Fork(TSThread, (void*)0);
+     TSThread(0); 
 
-    TSThread(0); 
+#endif 
 
+   
     printf("--- Calling TS command ---\n");
     TS();
     printf("--- End of TS command ---\n");

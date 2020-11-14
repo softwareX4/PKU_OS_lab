@@ -8,7 +8,7 @@
 //
 //	Linear page table -- the virtual page # is used as an index
 //	into the table, to find the physical page #.
-//
+// 
 //	Translation lookaside buffer -- associative lookup in the table
 //	to find an entry with the same virtual page #.  If found,
 //	this entry is used for the translation.
@@ -95,6 +95,7 @@ Machine::ReadMem(int addr, int size, int *value)
     
     exception = Translate(addr, &physicalAddress, size, FALSE);
     if (exception != NoException) {
+		
 	machine->RaiseException(exception, addr);
 	return FALSE;
     }
@@ -144,6 +145,7 @@ Machine::WriteMem(int addr, int size, int value)
 
     exception = Translate(addr, &physicalAddress, size, TRUE);
     if (exception != NoException) {
+		
 	machine->RaiseException(exception, addr);
 	return FALSE;
     }
@@ -183,6 +185,7 @@ Machine::WriteMem(int addr, int size, int value)
 // 	"writing" -- if TRUE, check the "read-only" bit in the TLB
 //----------------------------------------------------------------------
 
+
 ExceptionType
 Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 {
@@ -200,16 +203,48 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
     }
     
     // we must have either a TLB or a page table, but not both!
-    ASSERT(tlb == NULL || pageTable == NULL);	
-    ASSERT(tlb != NULL || pageTable != NULL);	
+	//----Lab 2 TLB  -----
+  //  ASSERT(tlb == NULL || pageTable == NULL);	
+  //  ASSERT(tlb != NULL || pageTable != NULL);	
 
 // calculate the virtual page number, and offset within the page,
 // from the virtual address
+
     vpn = (unsigned) virtAddr / PageSize;
     offset = (unsigned) virtAddr % PageSize;
+	
+			
+#ifdef USE_BITMAP 
+	//printf("VPN\tPPN\tvalid\n");
+	bool f = false;
+	for(int i = 0; i < pageTableSize; ++i){
+		//printf("%d\t%d\t%d\n",pageTable[i].virtualPage,pageTable[i].physicalPage,pageTable[i].valid);
+		if(pageTable[i].valid && vpn == pageTable[i].virtualPage){
+			//printf("va:%d  vpn : %d   ppn : %d\n",virtAddr,vpn,pageTable[i].physicalPage);
+			entry = &pageTable[i];
+			f = true;
+			break;
+		}
+	}
+	
+	if(!f) {
+		//currentThread->Finish();
+		
+printf("==============va:%d , vpn:%d=============\n",virtAddr,vpn);
+		DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
+			virtAddr, pageTableSize);
+	    return PageFaultException;
+	}
+
+	
+#else
+
+
     
     if (tlb == NULL) {		// => page table => vpn is index into table
 	if (vpn >= pageTableSize) {
+		
+		printf("virtAddr : %d ,vpn: %d ,page table size:%d \n",virtAddr,vpn,pageTableSize);
 	    DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
 			virtAddr, pageTableSize);
 	    return AddressErrorException;
@@ -218,20 +253,46 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 			virtAddr, pageTableSize);
 	    return PageFaultException;
 	}
+
+
+
 	entry = &pageTable[vpn];
-    } else {
+    } 
+	else {
+		
+	#ifdef USE_TLB
+
         for (entry = NULL, i = 0; i < TLBSize; i++)
     	    if (tlb[i].valid && (tlb[i].virtualPage == vpn)) {
-		entry = &tlb[i];			// FOUND!
-		break;
+				entry = &tlb[i];			// FOUND!
+				//----------Lab 2 TLB -------------
+				TLBHit++;
+				tlb[i].count = 1;
+				//---------------------------------
+				break;
 	    }
 	if (entry == NULL) {				// not found
+		//------------------Lab2 TLB----------------
+		TLBMiss++;
+		for(int i = 0; i < TLBSize;++i){
+			 if (tlb[i].valid) {
+				tlb[i].count ++;
+			}
+
+		}
+		//-----------------------------------------
+		
     	    DEBUG('a', "*** no valid TLB entry found for this virtual page!\n");
-    	    return PageFaultException;		// really, this is a TLB fault,
+    	    return TLBException;		// really, this is a TLB fault,
 						// the page may be in memory,
 						// but not in the TLB
 	}
+
+	#endif
+	
     }
+
+#endif  
 
     if (entry->readOnly && writing) {	// trying to write to a read-only page
 	DEBUG('a', "%d mapped read-only at %d in TLB!\n", virtAddr, i);
@@ -251,5 +312,7 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
     *physAddr = pageFrame * PageSize + offset;
     ASSERT((*physAddr >= 0) && ((*physAddr + size) <= MemorySize));
     DEBUG('a', "phys addr = 0x%x\n", *physAddr);
+	//printf("pageFrame = %d\n", pageFrame);
+
     return NoException;
 }
