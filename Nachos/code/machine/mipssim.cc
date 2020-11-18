@@ -97,7 +97,7 @@ Machine::OneInstruction(Instruction *instr)
     int nextLoadReg = 0; 	
     int nextLoadValue = 0; 	// record delayed load operation, to apply
 				// in the future
-
+ 
     // Fetch instruction 
     if (!machine->ReadMem(registers[PCReg], 4, &raw))
 	{printf("fetch instr failed \n");

@@ -33,6 +33,7 @@ void TLBMissHandler(int BadVAddr);
 void TLBAlgoLRU(TranslationEntry page);
 #endif
 void IncrementPCRegs(void);
+void PageFaultHandler(int BadVAddr);
 //----------------------------------------------------------------------
 // ExceptionHandler
 // 	Entry point into the Nachos kernel.  Called when a user program
@@ -66,8 +67,13 @@ ExceptionHandler(ExceptionType which)
          // linear page table page fault
             DEBUG('m', "=> Page table page fault.\n");
             int BadVAddr = machine->ReadRegister(BadVAddrReg); 
-            printf("BadAddr : %d\n",BadVAddr);
+            printf("PageFault , BadAddr : %d\n",BadVAddr);
+            #ifdef USE_PAGE
+            //---------------Lab 2 Exercise 6---------
+            PageFaultHandler(BadVAddr);
+            #else
             ASSERT(FALSE);
+            #endif
 	//ASSERT(FALSE);
     }
     #ifdef USE_TLB    
@@ -95,7 +101,7 @@ ExceptionHandler(ExceptionType which)
        
 
         
-       // IncrementPCRegs();
+        IncrementPCRegs();
         currentThread->Finish();
       //  int NextPC = machine->ReadRegister(NextPCReg);
       //  machine->WriteRegister(PCReg,NextPC);
@@ -117,6 +123,81 @@ void IncrementPCRegs(void) {
     machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
     machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
 }
+
+
+#ifdef USE_PAGE
+//--------------Lab 2 Exercise 6 ------------------
+int
+NaivePageReplacement(int vpn)
+{
+    int pageFrame = -1;
+    for (int temp_vpn = 0; temp_vpn < machine->pageTableSize, temp_vpn != vpn; temp_vpn++) {
+        if (machine->pageTable[temp_vpn].valid) {
+            if (!machine->pageTable[temp_vpn].dirty) {
+                pageFrame = machine->pageTable[temp_vpn].physicalPage;
+                break;
+            }
+        }
+    }
+    if (pageFrame == -1) { // No non-dirty entry
+        for (int replaced_vpn = 0; replaced_vpn < machine->pageTableSize, replaced_vpn != vpn; replaced_vpn++) {
+            if (machine->pageTable[replaced_vpn].valid) {
+                machine->pageTable[replaced_vpn].valid = FALSE;
+                pageFrame = machine->pageTable[replaced_vpn].physicalPage;
+                printf("pageFrame=========> %d \n",pageFrame);
+
+                // Store the page back to disk
+                OpenFile *vm = fileSystem->Open("VirtualMemory");
+                ASSERT(vm != NULL);
+                vm->WriteAt(&(machine->mainMemory[pageFrame*PageSize]), PageSize, replaced_vpn*PageSize);
+                delete vm; // close file
+                break;
+            }
+        }
+    }
+    return pageFrame;
+}
+
+void PageFaultHandler(int BadVAddr){
+   
+     // Get a Memory space (page frame) to allocate
+     int vpn = (unsigned) machine->registers[BadVAddrReg] / PageSize;
+     #ifdef INVERTED_PAGETABLE // Lab4: Inverted Page Table
+
+        int pageFrame = machine -> allocateFrame(); // ppn
+
+    #else
+    int pageFrame = machine ->bitmap-> Find(); // ppn
+    #endif
+    if (pageFrame == -1) { // Need page replacement
+        pageFrame = NaivePageReplacement(vpn);
+    }
+    machine->pageTable[vpn].physicalPage = pageFrame;
+    machine->pageTable[vpn].virtualPage = vpn;
+   // printf(" pageFrame:%d \n\n", machine->pageTable[vpn].physicalPage);
+
+    // Load the Page from virtual memory
+    DEBUG('a', "Demand paging: loading page from virtual memory!\n");
+    OpenFile *vm = fileSystem->Open("VirtualMemory"); // This file is created in userprog/addrspace.cc
+    ASSERT(vm != NULL);
+    vm->ReadAt(&(machine->mainMemory[pageFrame*PageSize]), PageSize, vpn*PageSize);
+    delete vm; // close the file
+
+    // Set the page attributes
+    machine->pageTable[vpn].valid = TRUE;
+    machine->pageTable[vpn].use = FALSE;
+    machine->pageTable[vpn].dirty = FALSE;
+    machine->pageTable[vpn].readOnly = FALSE;
+      /* printf("============cur:%s============\nVPN\tPPN\tVALID\tUSE\tDIRTY\n",currentThread->getName());
+for(int i = 0; i < machine->pageTableSize;++i){
+		printf("%d\t%d\t%d\t%d\t%d\n",machine->pageTable[i].virtualPage,machine->pageTable[i].physicalPage,machine->pageTable[i].valid,machine->pageTable[i].use,machine->pageTable[i].dirty);
+}*/
+}
+
+
+
+#endif
+
 
 #ifdef USE_TLB
 

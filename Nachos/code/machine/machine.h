@@ -173,6 +173,11 @@ class Machine {
 #ifdef USE_BITMAP
 	BitMap *bitmap;
 #endif 
+#ifdef INVERTED_PAGETABLE // Lab4: Inverted Page Table
+
+int Machine::allocateFrame();
+void Machine::freeMem(void);
+#endif
 
 
 // NOTE: the hardware translation of virtual addresses in the user program

@@ -60,6 +60,109 @@ SwapHeader (NoffHeader *noffH)
 //	"executable" is the file containing the object code to load into memory
 //----------------------------------------------------------------------
 
+
+//------------------------------------------------------------------
+// Lab 2 Exercise 7 
+//------------------------------------------------------------------
+
+
+#ifdef INVERTED_PAGETABLE
+
+AddrSpace::AddrSpace(OpenFile *executable)
+{
+    NoffHeader noffH;
+    unsigned int i, size;
+
+    executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
+    if ((noffH.noffMagic != NOFFMAGIC) && 
+		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
+    	SwapHeader(&noffH);
+    ASSERT(noffH.noffMagic == NOFFMAGIC);
+
+
+// how big is address space?
+    size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
+			+ UserStackSize;	// we need to increase the size
+						// to leave room for the stack
+    numPages = divRoundUp(size, PageSize);
+  
+    size = numPages * PageSize;
+    
+
+    DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
+					numPages, size);
+
+ for (i = 0; i < numPages; i++) {
+        machine->pageTable[i].physicalPage = machine->allocateFrame(); // Currently don't support demand paging
+        machine->pageTable[i].valid = TRUE;
+        machine->pageTable[i].use = FALSE;
+        machine->pageTable[i].dirty = FALSE;
+        machine->pageTable[i].readOnly = FALSE;
+
+        machine->pageTable[i].threadId = currentThread->getThreadId(); // The additional part of inverted page table
+    }
+    DEBUG('M', "Initialized memory for thread \"%s\".\n", currentThread->getName());
+
+
+// Create a virtual memory with the size that the executable file need.
+    DEBUG('a', "Demand paging: creating virtual memory!\n");
+
+    bool success_create_vm = fileSystem->Create("VirtualMemory", size);
+    ASSERT(success_create_vm);
+
+    OpenFile *vm = fileSystem->Open("VirtualMemory");
+
+    
+
+// then, copy in the code and data segments into memory
+
+    if (noffH.code.size > 0) {
+        DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
+			noffH.code.virtualAddr, noffH.code.size);
+
+         //-----------Lab 2 BITMAP -------------
+         int pos = noffH.code.inFileAddr;
+         int vm_addr = noffH.code.virtualAddr ;
+         char virtualMemory_temp;
+         for(int j = 0; j < noffH.code.size;++j){
+             int cur_vpn = (noffH.code.virtualAddr + j ) / PageSize;
+             int cur_offset = (noffH.code.virtualAddr + j ) % PageSize;
+             //int paddr = pageTable[cur_vpn].physicalPage * PageSize + cur_offset;
+             executable -> ReadAt(&(virtualMemory_temp),1,pos++);
+             vm->WriteAt(&(virtualMemory_temp),1,vm_addr++);
+             
+         }   
+            
+       // executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
+		//	noffH.code.size, noffH.code.inFileAddr);
+    }
+    if (noffH.initData.size > 0) {
+        DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
+			noffH.initData.virtualAddr, noffH.initData.size);
+           // printf("Initializing data segment, at 0x%x, size %d\n", 
+			//noffH.initData.virtualAddr, noffH.initData.size);
+        //executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
+			//noffH.initData.size, noffH.initData.inFileAddr);
+            
+         //-----------Lab 2 BITMAP -------------
+         int pos = noffH.initData.inFileAddr;
+         int vm_addr = noffH.initData.virtualAddr ;
+         char virtualMemory_temp;
+         for(int j = 0; j < noffH.initData.size;++j){
+             int cur_vpn = (noffH.initData.virtualAddr + j ) / PageSize;
+             int cur_offset = (noffH.initData.virtualAddr + j ) % PageSize;
+             //int paddr = pageTable[cur_vpn].physicalPage * PageSize + cur_offset;
+             executable -> ReadAt(&(virtualMemory_temp),1,pos++);
+             vm->WriteAt(&(virtualMemory_temp),1,vm_addr++);
+        
+         }   
+           
+    }
+    delete vm;
+}
+
+#else 
+
 AddrSpace::AddrSpace(OpenFile *executable)
 {
     NoffHeader noffH;
@@ -78,14 +181,12 @@ AddrSpace::AddrSpace(OpenFile *executable)
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
 
-    ASSERT(numPages <= NumPhysPages);		// check we're not trying
+    //ASSERT(numPages <= NumPhysPages);		// check we're not trying
 						// to run anything too big --
 						// at least until we have
 						// virtual memory
 
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
-					numPages, size);
-                    printf("Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
 // first, set up the translation 
 
@@ -114,8 +215,6 @@ AddrSpace::AddrSpace(OpenFile *executable)
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
-            printf("Initializing code segment, at 0x%x, size %d\n", 
-			noffH.code.virtualAddr, noffH.code.size);
 
          //-----------Lab 2 BITMAP -------------
          int pos = noffH.code.inFileAddr;
@@ -132,8 +231,6 @@ AddrSpace::AddrSpace(OpenFile *executable)
     if (noffH.initData.size > 0) {
         DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
 			noffH.initData.virtualAddr, noffH.initData.size);
-            printf("Initializing data segment, at 0x%x, size %d\n", 
-			noffH.initData.virtualAddr, noffH.initData.size);
         //executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
 			//noffH.initData.size, noffH.initData.inFileAddr);
             
@@ -149,6 +246,9 @@ AddrSpace::AddrSpace(OpenFile *executable)
     }
 
 }
+
+
+#endif
 
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
@@ -212,7 +312,14 @@ AddrSpace::InitRegisters()
 //----------------------------------------------------------------------
 
 void AddrSpace::SaveState() 
-{}
+{
+    #ifdef USE_TLB // Lab4: Clean up TLB
+    DEBUG('T', "Clean up TLB due to Context Switch!\n");
+    for (int i = 0; i < TLBSize; i++) {
+        machine->tlb[i].valid = FALSE;
+    }
+#endif
+}
 
 //----------------------------------------------------------------------
 // AddrSpace::RestoreState
@@ -232,8 +339,9 @@ for(int i = 0; i < machine->pageTableSize;++i){
 for(int i = 0; i < numPages;++i){
 		printf("%d\t%d\t%d\n",pageTable[i].virtualPage,pageTable[i].physicalPage,pageTable[i].valid);
 }*/
+#ifndef INVERTED_PAGETABLE
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
-    
+#endif
 
 }

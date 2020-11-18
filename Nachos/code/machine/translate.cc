@@ -112,6 +112,7 @@ Machine::ReadMem(int addr, int size, int *value)
 	
       case 4:
 	data = *(unsigned int *) &machine->mainMemory[physicalAddress];
+	DEBUG('a', "\data read =%d\n", machine->mainMemory[physicalAddress]);
 	*value = WordToHost(data);
 	break;
 
@@ -230,7 +231,7 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 	if(!f) {
 		//currentThread->Finish();
 		
-printf("==============va:%d , vpn:%d=============\n",virtAddr,vpn);
+printf("\n=============va:%d , vpn:%d=============\n",virtAddr,vpn);
 		DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
 			virtAddr, pageTableSize);
 	    return PageFaultException;
@@ -242,7 +243,8 @@ printf("==============va:%d , vpn:%d=============\n",virtAddr,vpn);
 
     
     if (tlb == NULL) {		// => page table => vpn is index into table
-	if (vpn >= pageTableSize) {
+	
+	/*if (vpn >= pageTableSize) {
 		
 		printf("virtAddr : %d ,vpn: %d ,page table size:%d \n",virtAddr,vpn,pageTableSize);
 	    DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
@@ -253,10 +255,22 @@ printf("==============va:%d , vpn:%d=============\n",virtAddr,vpn);
 			virtAddr, pageTableSize);
 	    return PageFaultException;
 	}
-
-
-
 	entry = &pageTable[vpn];
+*/
+
+        if (vpn >= pageTableSize) {
+            DEBUG('a', "virtual page # %d too large for page table size %d!\n",
+                  virtAddr, pageTableSize);
+            return AddressErrorException;
+        } else if (!pageTable[vpn].valid) {
+            DEBUG('a', "virtual page # %d is invalid!\n");
+            return PageFaultException;
+        } else if (!(pageTable[vpn].threadId == currentThread->getThreadId())) {
+			printf("pageTable[vpn].threadId:%d == currentThread->getThreadId():%d\n",pageTable[vpn].threadId , currentThread->getThreadId());
+            ASSERT(FALSE);
+        }
+        entry = &pageTable[vpn];
+	
     } 
 	else {
 		

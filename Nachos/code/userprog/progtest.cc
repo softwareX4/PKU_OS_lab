@@ -16,10 +16,7 @@
 
 
 void BitMapThread(int dummy){
-    	printf("============cur:%s============\nVPN\tPPN\tVALID\n",currentThread->getName());
-for(int i = 0; i < machine->pageTableSize;++i){
-		printf("%d\t%d\t%d\n",machine->pageTable[i].virtualPage,machine->pageTable[i].physicalPage,machine->pageTable[i].valid);
-}
+    	
     printf("start running thread : %s  \n",currentThread->getName());
     machine->Run();		
    
@@ -48,8 +45,8 @@ StartProcess(char *filename)
 
     delete executable;			// close file
 
-//-------Lab 2  BITMAP-------
- Thread *t = new Thread("BitMap Test",0);
+//-------Lab 2  BITMAP   MultiThread-------
+ /*Thread *t = new Thread("BitMap Test",0);
  OpenFile *executable2 = fileSystem->Open(filename);
     AddrSpace *space2;
 
@@ -67,7 +64,7 @@ StartProcess(char *filename)
     
     //t->Finish();
     printf("======return to main==========\n");
-
+*/
     currentThread->space->InitRegisters();		
     currentThread->space->RestoreState();
      machine->Run();			// jump to the user progam

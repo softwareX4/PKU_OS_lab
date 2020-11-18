@@ -8,7 +8,7 @@
  */
 
 #include "syscall.h"
-#define LEN 2
+#define LEN 20
 
 
 int A[LEN];	/* size of physical memory; with code, we'll run out of space!*/

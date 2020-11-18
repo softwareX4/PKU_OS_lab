@@ -43,6 +43,9 @@ class TranslationEntry {
       #ifdef USE_TLB
       int count;
       #endif 
+      #ifdef INVERTED_PAGETABLE // Lab4: Inverted Page Table
+       int threadId;
+       #endif
 };
 
 #endif

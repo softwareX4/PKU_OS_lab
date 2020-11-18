@@ -88,6 +88,21 @@ Machine::Machine(bool debug)
     pageTable = NULL;
 #endif
 
+#ifdef INVERTED_PAGETABLE
+
+
+   pageTable = new TranslationEntry[NumPhysPages];
+    // Initialize Inverted Page Table
+    for (i = 0; i < NumPhysPages; i++) {
+        pageTable[i].physicalPage = i;
+        pageTable[i].virtualPage = i;
+        pageTable[i].valid = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+        pageTable[i].threadId = -1;
+    }
+    pageTableSize = MemorySize;
+#endif
     singleStep = debug;
     CheckEndian();
 }
@@ -230,3 +245,30 @@ void Machine::WriteRegister(int num, int value)
 	registers[num] = value;
     }
 
+
+
+#ifdef INVERTED_PAGETABLE // Lab4: Inverted Page Table
+
+int Machine::allocateFrame(void)
+{
+    for (int i = 0; i < NumPhysPages; i++) {
+        if (!pageTable[i].valid) {
+            return i;
+        }
+    }
+    ASSERT("Out of physical page frame! Current inverted page table don't support demand paging!")
+    return -1;
+}
+
+void Machine::freeMem(void)
+{
+    for (int i = 0; i < NumPhysPages; i++) {
+        if (pageTable[i].threadId == currentThread->getThreadId()) {
+            pageTable[i].valid = FALSE;
+            DEBUG('M', "Free physical page frame: %d\n", i);
+        }
+    }
+    DEBUG('M', "Freed the memory hold by thread \"%s\".\n", currentThread->getName());
+}
+
+#endif
