@@ -1,7 +1,23 @@
  
 
 # 虚存管理
-[TOC]
+- [背景](#--)
+- [TLB 异常处理](#tlb-----)
+  * [Exercise 1 源代码阅读](#exercise-1------)
+  * [Exercise 2 TLB MISS异常处理](#exercise-2-tlb-miss----)
+  * [Exercise 3 置换算法](#exercise-3-----)
+    + [命中率](#---)
+    + [FIFO](#fifo)
+    + [LRU](#lru)
+- [分页式内存管理](#-------)
+  * [Exercise 4 内存全局管理数据结构](#exercise-4-----------)
+  * [Exercise 5 多线程支持](#exercise-5------)
+  * [Exercise 6  缺页中断处理](#exercise-6--------)
+- [Lazy-loading](#lazy-loading)
+  * [Exercise 7](#exercise-7)
+- [Challenges](#challenges)
+  * [Challenge 1](#challenge-1)
+  * [Challenge 2](#challenge-2)
 
 ## 背景
 
@@ -172,7 +188,7 @@ for (entry = NULL, i = 0; i < TLBSize; i++)
     	    return TLBException;	
 	}
 //...
-```  
+```
 
 <code>userProg/exception.cc</code>
 ```c
@@ -433,11 +449,11 @@ StartProcess(char *filename)
 
 ### Exercise 7 
 我们已经知道，Nachos系统为用户程序分配内存必须在用户程序载入内存时一次性完成，故此，系统能够运行的用户程序的大小被严格限制在4KB以下。请实现Lazy-loading的内存分配算法，使得当且仅当程序运行过程中缺页中断发生时，才会将所需的页面从磁盘调入内存。
-  
+
 通过-DUSE_PAGE开启lazy-loading  
 在<code>userprog/addrspace.cc</code>初始分配页表的时候至valid为False.
 建立虚拟内存,并把内容拷贝进去，注意写入的起始地址是：noffH.initData.**virtualAddr** 。
- 
+
  ```c
  
 // Create a virtual memory with the size that the executable file need.
@@ -555,7 +571,7 @@ Machine::Machine(bool debug){
 }
     
 ```
- 
+
 
  在分配地址时：
  ```c
@@ -575,7 +591,7 @@ Machine::Machine(bool debug){
     }
     //...
 }
-```
+ ```
 
 地址转换判断是否为当前线程拥有的：
 ```c

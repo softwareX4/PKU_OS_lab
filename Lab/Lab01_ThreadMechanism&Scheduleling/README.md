@@ -1,9 +1,34 @@
 # 线程机制及调度
 
-[TOC]
+- [总体概述](#----)
+- [调研](#--)
+  * [Linux中的PCB](#linux--pcb)
+  * [与Nachos的异同](#-nachos---)
+  * [Linux的进程调度算法](#linux-------)
+- [Exercise 1 源代码阅读](#exercise-1------)
+- [Exercise 2 扩展线程的数据结构](#exercise-2----------)
+- [Exercise3 增加全局线程管理机制](#exercise3-----------)
+  * [TS命令](#ts--)
+- [Exercise 4 源代码阅读](#exercise-4------)
+  * [scheduler.cc中比较重要的方法：](#schedulercc---------)
+  * [Timer.h和Timer.cc](#timerh-timercc)
+- [Exercise 5 线程调度算法扩展](#exercise-5---------)
+  * [基本思路](#----)
+  * [实现](#--)
+- [Challenge 线程调度算法扩展](#challenge---------)
+  * [Timer::Timer(VoidFunctionPtr timerHandler, int callArg, bool doRandom)](#timer--timer-voidfunctionptr-timerhandler--int-callarg--bool-dorandom-)
+  * [Interrupt类](#interrupt-)
+  * [Interrupt类中的重要方法：](#interrupt--------)
+  * [思路](#--)
+  * [实现](#---1)
+- [遇到的困难以及解决方法](#-----------)
+  * [1.抢占](#1--)
+  * [2.定时器](#2---)
+- [参考文献](#----)
+- [附录](#--)
 
 
-## 总体概述
+## 
 
 ​     本实验主要分为两个部分，第一部分是线程机制，第二部分是调度策略。需要掌握线程、中断、调度算法等概念，通过阅读理解改Nachos系统平台的底层源代码，对原生机制的工作原理有一个清晰的认知。在此基础上修改源代码，更改调度和中断工作方式，从而扩展线程模型和调度算法。
 
@@ -401,7 +426,7 @@ static void RRInterruptHandler(int dummy)
 
 }
 ```
- 
+
 
 并在thread\main.cc:**Initialize(int argc, char** ********argv)**中的合适位置增加以下代码，作用是通过-rr参数启动时间片轮转调度：
 ```c
@@ -425,7 +450,7 @@ else if (!strcmp(*argv, "-rr")) {
 
   timer = new Timer(RRInterruptHandler,0,FALSE);
 ```
- 
+
 
 在每个线程中，要做如下事情：
 
@@ -458,7 +483,7 @@ void ThreadRR(int dummy){
 
 }
 
- ```
+```
 
 测试程序创建四个线程，并赋予不同的优先级和时间片。
 
@@ -526,7 +551,7 @@ void RRTest(){
 
 并且，中断发生的时机是与stats->totalTicks配合判断的。
 
-    
+​    
 
 ## 参考文献
 
@@ -536,9 +561,9 @@ void RRTest(){
 
 [3] https://blog.csdn.net/w_y_x_y/article/details/80016975）  
 
- 
+
 ## 附录
- 
+
 <pre lang="txt">
     <code>
 //运行./nachos -rr -q 5  
@@ -834,4 +859,5 @@ Network I/O: packets received 0, sent 0
 Cleaning up...
 
      </code>
+
 </pre>
