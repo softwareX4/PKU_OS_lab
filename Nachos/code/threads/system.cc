@@ -24,7 +24,6 @@ bool tFlag[MAX_THREAD_NUM];   //the spare tid
 Thread * allThread[MAX_THREAD_NUM];    //all thread status  
 
 
-
 #ifdef FILESYS_NEEDED
 FileSystem  *fileSystem;
 #endif
@@ -66,6 +65,7 @@ extern void Cleanup();
 static void
 TimerInterruptHandler(int dummy)
 {
+    DEBUG('c', " << random Context Switch (stats->totalTicks = %d) >>\n", stats->totalTicks);
     if (interrupt->getStatus() != IdleMode)
 	interrupt->YieldOnReturn();
 }
@@ -106,6 +106,7 @@ Initialize(int argc, char **argv)
     char* debugArgs = "";
     bool randomYield = FALSE;
     bool roundRobin = FALSE;
+
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program

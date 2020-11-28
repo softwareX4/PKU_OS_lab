@@ -16,6 +16,7 @@
 #include "stats.h"
 #include "timer.h"
 
+
 #define MAX_THREAD_NUM 128   //define max thread num
 #define PRI_DEGRADE 1
 
@@ -32,8 +33,12 @@ extern Interrupt *interrupt;			// interrupt status
 extern Statistics *stats;			// performance metrics
 extern Timer *timer;				// the hardware alarm clock
 
+//-------------------Lab 1---------------------
 extern bool tFlag[];  //if thread num is max
 extern Thread * allThread[];
+//-------------------------------------------
+
+
 
 #ifdef USER_PROGRAM
 #include "machine.h"

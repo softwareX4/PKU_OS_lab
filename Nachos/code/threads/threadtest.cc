@@ -12,9 +12,11 @@
 #include "copyright.h"
 #include "system.h"
 #include "elevatortest.h"
-
 // testnum is set in main.cc
 int testnum = 4;
+
+//-----------Lab3------------
+#include "synch.h"
 
 //----------------------------------------------------------------------
 // SimpleThread
@@ -236,6 +238,133 @@ void RRTest(){
 }
 
 
+//--------------------Lab 3--------------------------------------------
+Buffer * buffer;
+Product   produce(int value){
+        printf("Producing item with value %d\n", value);
+        Product  item;
+        item.value = value;
+        return item;
+    }
+
+//Consumer
+void consume(Product * p){
+        printf("Consuming item with value %d\n", p->value);
+    }
+
+void Produce_Thread(int n){
+    for(int i = 1; i <= n;++i){
+        
+        printf("## %s ##: ", currentThread->getName());
+        Product item = produce(i);
+        
+        buffer->putItemInBuffer(item);
+        interrupt->OneTick();
+    }
+    buffer->printBuffer();
+}
+
+
+void Consume_Thread(int n){
+    for(int i = 1; i <= n; ++i){
+        printf("$$ %s $$: ", currentThread->getName());
+        Product * item = buffer->removeItemFromBuffer();
+        consume(item);
+        interrupt->OneTick();
+    }
+    buffer->printBuffer();
+}
+
+void
+Lab3ProducerConsumer()
+{
+    buffer = new Buffer();
+    DEBUG('t', "Entering Lab3ProducerConsumer");
+
+    Thread *producer1 = new Thread("Producer 1");
+    Thread *producer2 = new Thread("Producer 2");
+    Thread *consumer1 = new Thread("Consumer 1");
+    Thread *consumer2 = new Thread("Consumer 2");
+
+    producer1->Fork(Produce_Thread, (void*)8);
+    consumer1->Fork(Consume_Thread, (void*)6);
+    consumer2->Fork(Consume_Thread, (void*)9);
+    producer2->Fork(Produce_Thread, (void*)7);
+    currentThread->Yield(); // Yield the main thread
+}
+
+//---------------------------------------------------------------------
+
+//------------------------------Lab 3 Challenge------------------------
+WriteReadLock * RWLock;
+
+#define SENTENCE_LENGTH 9
+#define MAX_CHAR 20
+
+char sentence[SENTENCE_LENGTH][MAX_CHAR]= {"The","world" ,"is" ,"in" ,"continuous","flux" ,"and" ,"is","impermanent."  } ;
+char quote[SENTENCE_LENGTH][MAX_CHAR];
+int words;
+void
+ReaderThread(int reader_id)
+{
+    do {
+        RWLock->ReaderAcquire();
+
+        printf("Reader %d is reading: ", reader_id);
+        for (int i = 0; i < words; i++) {
+            printf("%s ", quote[i]);
+        }
+        printf("\n");
+
+        RWLock->ReaderRelease();
+    } while (words < SENTENCE_LENGTH);
+    if(words == SENTENCE_LENGTH){
+        RWLock->ReaderAcquire();
+        printf("Reader %d is reading: ", reader_id);
+        for (int i = 0; i < words; i++) {
+            printf("%s ", quote[i]);
+        }
+        printf("\n");
+
+        RWLock->ReaderRelease();
+    }
+}
+void
+WriterThread(int dummy)
+{
+    while (words < SENTENCE_LENGTH) {
+        RWLock->WriterAcquire();
+        strcpy(quote[words], sentence[words]); // composing...
+        words++;
+        printf("Writer is writting: ");
+        for (int i = 0; i < words; i++) {
+            printf("%s ", quote[i]);
+        }
+        printf("\n");
+
+        RWLock->WriterRelease();
+    }
+}
+
+void
+Lab3WR()
+{
+    RWLock = new WriteReadLock("WRLock");
+    words = 0;
+    DEBUG('t', "Entering Lab3 Write/Read Lock");
+
+    Thread *Writer = new Thread("W");
+    Thread *Reader1 = new Thread("1");
+    Thread *Reader2 = new Thread("2");
+    //Thread *Reader3 = new Thread("3");
+
+    Writer->Fork(WriterThread, (void*)0);
+    Reader1->Fork(ReaderThread, (void*)1);
+    Reader2->Fork(ReaderThread, (void*)2);
+   // Reader3->Fork(ReaderThread, (void*)3);
+    currentThread->Yield(); // Yield the main thread
+}
+//---------------------------------------------------------------------
 
 
 //----------------------------------------------------------------------
@@ -262,9 +391,17 @@ ThreadTest()
     case 5:
     RRTest();
     break;
+    
+    case 6:
+    Lab3ProducerConsumer();
+    break;
+    case 7:
+    Lab3WR();
+    break;
     default:
 	printf("No test specified.\n");
 	break;
     }
 }
 
+ 

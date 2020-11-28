@@ -72,8 +72,8 @@ Semaphore::P()
     } 
     value--; 					// semaphore available, 
 						// consume its value
-    
     (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+ 
 }
 
 //----------------------------------------------------------------------
@@ -100,13 +100,271 @@ Semaphore::V()
 // Dummy functions -- so we can compile our later assignments 
 // Note -- without a correct implementation of Condition::Wait(), 
 // the test case in the network assignment won't work!
-Lock::Lock(char* debugName) {}
-Lock::~Lock() {}
-void Lock::Acquire() {}
-void Lock::Release() {}
+Lock::Lock(char* debugName) {
 
-Condition::Condition(char* debugName) { }
-Condition::~Condition() { }
-void Condition::Wait(Lock* conditionLock) { ASSERT(FALSE); }
-void Condition::Signal(Lock* conditionLock) { }
-void Condition::Broadcast(Lock* conditionLock) { }
+    name = debugName;
+    semaphore = new Semaphore("Lock",1);   // "1" means Free
+}
+Lock::~Lock() {}
+
+bool Lock:: isLocked(){
+    return this->holderThread != NULL;
+}
+bool Lock:: isHeldByCurrentThread(){
+    return this->holderThread == currentThread;
+}
+
+//	Acquire -- wait until the lock is FREE, then set it to BUSY
+void Lock::Acquire() {
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+    
+    DEBUG('s', "Lock \"%s\" Acquired by Thread \"%s\"\n", name, currentThread->getName());
+    semaphore->P();
+    holderThread = currentThread;    
+    
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+//	Release -- set lock to be FREE, waking up a thread waiting
+//		in Acquire if necessary
+//(Note: Only the Thread which own this lock can release lock)
+void Lock::Release() {
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts 
+    DEBUG('s', "Lock \"%s\" Released by Thread \"%s\"\n", name, currentThread->getName());
+    // make sure the owner of this lock is currentThread
+    ASSERT(this->isHeldByCurrentThread());
+    holderThread = NULL;
+    semaphore->V();
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+Condition::Condition(char* debugName) {
+    waitQueue = new List();
+ }
+Condition::~Condition() {
+    delete waitQueue;
+ }
+
+//	Wait() -- release the lock, relinquish the CPU until signaled, 
+//		then re-acquire the lock
+void Condition::Wait(Lock* conditionLock) {    
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+    
+    // conditionLock must be held by the currentThread
+    ASSERT(conditionLock->isHeldByCurrentThread())
+    // conditionLock must be locked
+    ASSERT(conditionLock->isLocked());
+
+    // 1. Release the lock while it waits
+    conditionLock->Release();
+
+    // 2. Append into waitQueue and sleep
+    waitQueue->Append(currentThread);
+    currentThread->Sleep();
+
+    // Awake by Signal...
+    // 3. Reclaim lock while awake
+    conditionLock->Acquire();
+    
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+ }
+
+ 
+ // In Nachos, condition variables are assumed to obey *Mesa*-style
+// semantics.  When a Signal or Broadcast wakes up another thread,
+// it simply puts the thread on the ready list, and it is the responsibility
+// of the woken thread to re-acquire the lock (this re-acquire is
+// taken care of within Wait()).
+
+//	Signal() -- wake up a thread, if there are any waiting on 
+//		the condition
+void Condition::Signal(Lock* conditionLock) { 
+    
+    
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+    
+     // conditionLock must be held by the current Thread
+    ASSERT(conditionLock->isHeldByCurrentThread())
+
+    if (!waitQueue->IsEmpty()) {
+        // Putting thread from the front of waitQueue onto ready list
+        Thread* thread = (Thread*) waitQueue->Remove();
+        scheduler->ReadyToRun(thread);
+    }
+
+    
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+
+
+//	Broadcast() -- wake up all threads waiting on the condition
+void Condition::Broadcast(Lock* conditionLock) {     
+    
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+    
+    // conditionLock must be held by the current Thread
+    ASSERT(conditionLock->isHeldByCurrentThread())
+
+    DEBUG('b', "Condition \"%s\" Broadcasting: ", name);
+    while (!waitQueue->IsEmpty()) {
+        // Putting all the threads on ready list
+        Thread* thread = (Thread*) waitQueue->Remove();
+        DEBUG('b', "Thread \"%s\", ", thread->getName());
+        scheduler->ReadyToRun(thread);
+    }
+    DEBUG('b', "\n");
+
+    
+    
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+
+
+
+//-------------------------Lab 3 --------------------------------
+//Producer–consumer problem using SEMAPHORE
+#ifdef USE_SEMAPHORE
+    Buffer::Buffer(){
+        count = 0;
+        buffer_mutex = new Semaphore("buffer_mutex",1);
+        empty = new Semaphore("empty",BUFFER_SIZE);
+        full = new Semaphore("full",0);
+    }
+    Buffer::~Buffer(){
+        delete buffer_list;
+    }
+
+    void 
+    Buffer::putItemInBuffer(Product  p){
+        empty->P();
+        buffer_mutex->P();
+        
+       // printf("p:%d\n",(p).value);
+        buffer_list[count++] = p;
+        
+        buffer_mutex->V();
+        full->V();
+    }
+
+    Product * 
+    Buffer::removeItemFromBuffer(){
+        full->P();
+        buffer_mutex->P();
+        Product * p = &buffer_list[count-- -1];
+        
+        buffer_mutex->V();
+        empty->V();
+        return p;
+    }
+#else
+    Buffer::Buffer(){
+        count = 0;
+        empty = new Condition("empty_condition");
+        full = new Condition("full_condition");
+        lock = new Lock("buffer_lock");
+
+    }
+    Buffer::~Buffer(){
+        delete buffer_list;
+    }
+
+    void 
+    Buffer::putItemInBuffer(Product  p){
+        lock->Acquire();
+        while (count == BUFFER_SIZE)
+        {
+            empty->Wait(lock);
+        }
+        
+        buffer_list[count++] = p;
+        full->Signal(lock);
+        lock->Release();
+    }
+
+    Product * 
+    Buffer::removeItemFromBuffer(){
+        lock->Acquire();
+        while(count == 0){
+            full->Wait(lock);
+        }
+        Product * p = &buffer_list[count-- -1];        
+        empty->Signal(lock);
+        lock->Release();
+        return p;
+    }
+#endif
+
+
+
+    void Buffer::printBuffer(){
+        printf("Buffer: [", BUFFER_SIZE, count);
+            int i;
+            for (i = 0; i < count; i++) {
+                printf("%d, ", buffer_list[i].value);
+            }
+            for (; i < BUFFER_SIZE; i++) {
+                printf("__, ");
+            }
+            printf("]\n");
+    }
+
+
+#ifdef USE_W_R
+
+  WriteReadLock::WriteReadLock(char * debugName){
+      name = debugName;
+      readers = 0;
+      mutex = new Lock("reader_mutex");
+      lock = new Semaphore("buffer lock",1);
+  }
+  WriteReadLock::~WriteReadLock(){ }
+
+
+  void
+  WriteReadLock::ReaderAcquire(){
+      IntStatus oldLevel = interrupt->SetLevel(IntOff);
+      mutex->Acquire();
+      readers++;
+      
+    DEBUG('w', "Reader \"%s\" comming in  \t(blockingReader=%d)\n", currentThread->getName(), readers);
+      if(readers == 1){   //the first reader
+          lock->P();
+      }
+      mutex->Release();
+
+      (void) interrupt->SetLevel(oldLevel);
+  }
+
+  void
+  WriteReadLock::ReaderRelease(){      
+      IntStatus oldLevel = interrupt->SetLevel(IntOff);	
+      mutex->Acquire();
+      readers--;
+      
+    DEBUG('w', "Reader \"%s\" getting out \t(blockingReader=%d)\n", currentThread->getName(), readers);
+      if(readers == 0) {
+          lock->V();
+      }
+      mutex->Release();
+      (void) interrupt->SetLevel(oldLevel);
+  }
+
+  void
+  WriteReadLock::WriterAcquire(){      
+      IntStatus oldLevel = interrupt->SetLevel(IntOff);	
+    DEBUG('w', "Writer \"%s\" comming in  \t(blockingReader=%d)\n", currentThread->getName(), readers);
+      lock->P();
+      (void) interrupt->SetLevel(oldLevel);
+  }
+
+  void
+  WriteReadLock::WriterRelease(){
+      IntStatus oldLevel = interrupt->SetLevel(IntOff);	      
+    DEBUG('w', "Writer \"%s\" getting out \t(blockingReader=%d)\n", currentThread->getName(), readers);
+    lock->V();
+      (void) interrupt->SetLevel(oldLevel);
+  }
+
+#endif

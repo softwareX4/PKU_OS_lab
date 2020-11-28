@@ -281,13 +281,10 @@ Thread::Sleep ()
     DEBUG('t', "Sleeping thread \"%s\"\n", getName());
 
 //change this thread's status in allTread
-
     status = BLOCKED;
-
-
     while ((nextThread = scheduler->FindNextToRun()) == NULL)
 	interrupt->Idle();	// no one to run, wait for an interrupt
-        
+
     scheduler->Run(nextThread); // returns when we've been signalled
 }
 

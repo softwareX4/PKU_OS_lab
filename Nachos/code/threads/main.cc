@@ -56,6 +56,9 @@
 #ifdef THREADS
 extern int testnum;
 #endif
+#ifdef USE_SEMAPHORE
+#include "synch.h"
+#endif 
 
 // External functions used by this file
 

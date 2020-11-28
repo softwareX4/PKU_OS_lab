@@ -76,10 +76,17 @@ class Lock {
 					// holds this lock.  Useful for
 					// checking in Release, and in
 					// Condition variable ops below.
+    bool isLocked();
 
   private:
     char* name;				// for debugging
     // plus some other stuff you'll need to define
+
+    //----------------Lab 3------------------
+    Thread * holderThread;     
+    Semaphore * semaphore;   //use semaphore to implement lock
+    //---------------------------------------
+
 };
 
 // The following class defines a "condition variable".  A condition
@@ -132,5 +139,77 @@ class Condition {
   private:
     char* name;
     // plus some other stuff you'll need to define
+
+    //------------Lab 3-------------------
+    List * waitQueue;
+    //------------------------------------
 };
+
+
+//--------------------lab 3---------------
+typedef struct PRODUCT
+{
+ int value;
+}Product;
+
+//Producer–consumer problem using SEMAPHORE
+#define BUFFER_SIZE 10
+class Buffer{
+  public:
+    Buffer();
+    ~Buffer();
+    void putItemInBuffer(Product  p);
+    Product * removeItemFromBuffer();
+    void printBuffer();
+  private:
+    //number of Products 
+    int count;  
+
+
+    //--------------------Semaphore-----------------------
+#ifdef USE_SEMAPHORE
+    //buffer lock  
+    Semaphore * buffer_mutex;
+    //empty
+    Semaphore * empty;
+    //full 
+    Semaphore * full;
+
+#else
+    Lock * lock;
+    Condition * empty;
+    Condition * full;
+    
+#endif // USE_SEMAPHORE
+
+
+    //product list 
+    Product  buffer_list[BUFFER_SIZE]; 
+
+};
+
+
+//-----------------------------Lab  Challenge 2 ---------------------
+#ifdef USE_W_R 
+class WriteReadLock{
+  public:
+  WriteReadLock(char * debugName);
+  ~WriteReadLock();
+  void ReaderAcquire();
+  void ReaderRelease();
+
+  void WriterAcquire();
+  void WriterRelease();
+
+  private:
+  int readers;
+  char *name;
+  Lock * mutex; //for int  readers
+  Semaphore * lock;  //for buffer,use semaphore because lock should be able to let other thread release
+
+
+};
+#endif // USE_W_R 
+//-------------------------------------------------------------------
+
 #endif // SYNCH_H
