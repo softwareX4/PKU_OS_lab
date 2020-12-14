@@ -187,10 +187,10 @@ class Buffer{
     Product  buffer_list[BUFFER_SIZE]; 
 
 };
-
+ 
 
 //-----------------------------Lab  Challenge 2 ---------------------
-#ifdef USE_W_R 
+#ifdef USE_W_R  
 class WriteReadLock{
   public:
   WriteReadLock(char * debugName);

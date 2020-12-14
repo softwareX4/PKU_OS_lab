@@ -31,6 +31,8 @@ OpenFile::OpenFile(int sector)
 { 
     hdr = new FileHeader;
     hdr->FetchFrom(sector);
+    hdr->setHeaderSector(sector); // Necessary, because we need to update
+                                  // FileHeader(i-node) later on.
     seekPosition = 0;
 }
 
@@ -41,6 +43,8 @@ OpenFile::OpenFile(int sector)
 
 OpenFile::~OpenFile()
 {
+    
+    hdr->WriteBack(hdr->getHeaderSector()); // Update the header info
     delete hdr;
 }
 
@@ -116,6 +120,10 @@ OpenFile::Write(char *into, int numBytes)
 int
 OpenFile::ReadAt(char *into, int numBytes, int position)
 {
+    
+    // Lab5: file header info update
+    hdr->setVisitTime(getCurrentTime());
+
     int fileLength = hdr->FileLength();
     int i, firstSector, lastSector, numSectors;
     char *buf;
@@ -146,6 +154,11 @@ OpenFile::ReadAt(char *into, int numBytes, int position)
 int
 OpenFile::WriteAt(char *from, int numBytes, int position)
 {
+    
+    // Lab5: file header info update
+    hdr->setVisitTime(getCurrentTime());
+    hdr->setModifyTime(getCurrentTime());
+
     int fileLength = hdr->FileLength();
     int i, firstSector, lastSector, numSectors;
     bool firstAligned, lastAligned;

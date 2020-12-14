@@ -88,7 +88,7 @@ main(int argc, char **argv)
 					// for a particular command
 	
     DEBUG('t', "Entering main");
-    (void) Initialize(argc, argv);
+    (void) Initialize(argc, argv); 
     
 #ifdef THREADS
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {

@@ -84,7 +84,9 @@ FileSystem::FileSystem(bool format)
         BitMap *freeMap = new BitMap(NumSectors);
         Directory *directory = new Directory(NumDirEntries);
 	FileHeader *mapHdr = new FileHeader;
+    mapHdr->HeaderCreateInit("BMap");
 	FileHeader *dirHdr = new FileHeader;
+    dirHdr->HeaderCreateInit("DirH");
 
         DEBUG('f', "Formatting the file system.\n");
 
@@ -201,6 +203,7 @@ FileSystem::Create(char *name, int initialSize)
             	success = FALSE;	// no space on disk for data
 	    else {	
 	    	success = TRUE;
+            hdr->HeaderCreateInit(getFileExtension(name)); // Lab5: additional file attributes
 		// everthing worked, flush all changes back to disk
     	    	hdr->WriteBack(sector); 		
     	    	directory->WriteBack(directoryFile);

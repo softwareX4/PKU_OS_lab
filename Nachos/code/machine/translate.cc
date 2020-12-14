@@ -244,7 +244,7 @@ printf("\n=============va:%d , vpn:%d=============\n",virtAddr,vpn);
     
     if (tlb == NULL) {		// => page table => vpn is index into table
 	
-	/*if (vpn >= pageTableSize) {
+	if (vpn >= pageTableSize) {
 		
 		printf("virtAddr : %d ,vpn: %d ,page table size:%d \n",virtAddr,vpn,pageTableSize);
 	    DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
@@ -256,8 +256,8 @@ printf("\n=============va:%d , vpn:%d=============\n",virtAddr,vpn);
 	    return PageFaultException;
 	}
 	entry = &pageTable[vpn];
-*/
 
+/*
         if (vpn >= pageTableSize) {
             DEBUG('a', "virtual page # %d too large for page table size %d!\n",
                   virtAddr, pageTableSize);
@@ -270,7 +270,7 @@ printf("\n=============va:%d , vpn:%d=============\n",virtAddr,vpn);
             ASSERT(FALSE);
         }
         entry = &pageTable[vpn];
-	
+	*/
     } 
 	else {
 		

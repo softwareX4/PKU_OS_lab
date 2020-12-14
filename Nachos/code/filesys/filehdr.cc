@@ -26,7 +26,6 @@
 
 #include "system.h"
 #include "filehdr.h"
-
 //----------------------------------------------------------------------
 // FileHeader::Allocate
 // 	Initialize a fresh file header for a newly created file.
@@ -37,7 +36,7 @@
 //	"freeMap" is the bit map of free disk sectors
 //	"fileSize" is the bit map of free disk sectors
 //----------------------------------------------------------------------
-
+/*
 bool
 FileHeader::Allocate(BitMap *freeMap, int fileSize)
 { 
@@ -49,7 +48,80 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
     for (int i = 0; i < numSectors; i++)
 	dataSectors[i] = freeMap->Find();
     return TRUE;
+}*/
+
+
+//---------------------------Lab 4--------------------------------------------------
+void printChar(char x){
+     if ('\040' <= x && x <= '\176')   // isprint(data[j])
+		printf("%c", x);
+            else
+		printf("\\%x", (unsigned char)x);
 }
+
+
+bool
+FileHeader::Allocate(BitMap *freeMap, int fileSize)
+{
+    numBytes = fileSize;
+    numSectors = divRoundUp(fileSize, SectorSize);
+    if (freeMap->NumClear() < numSectors)
+        return FALSE; // not enough space
+
+    if (numSectors < NumDirect) {
+        DEBUG('f',"==========Allocating using direct indexing only==========\n");
+        for (int i = 0; i < numSectors; i++)
+            dataSectors[i] = freeMap->Find();
+    } else {
+        if (numSectors < (NumDirect + LevelMapNum)) {
+            DEBUG('f',  "==========Allocating using single indirect indexing==========\n");
+            // direct
+            for (int i = 0; i < NumDirect ; i++)
+                dataSectors[i] = freeMap->Find();
+            // indirect
+            dataSectors[IndirectSectorIdx] = freeMap->Find();
+            int indirectIndex[LevelMapNum];
+            for (int i = 0; i < numSectors - NumDirect; i++) {
+                indirectIndex[i] = freeMap->Find();
+            }
+            synchDisk->WriteSector(dataSectors[IndirectSectorIdx], (char*)indirectIndex);
+        } else if (numSectors < (NumDirect + LevelMapNum + LevelMapNum*LevelMapNum)) {
+            DEBUG('f', "==========Allocating using double indirect indexing==========\n");
+            // direct
+            for (int i = 0; i < NumDirect; i++)
+                dataSectors[i] = freeMap->Find();
+            dataSectors[IndirectSectorIdx] = freeMap->Find();
+            // first indirect
+            int indirectIndex[LevelMapNum];
+            for (int i = 0; i < LevelMapNum; i++) {
+                indirectIndex[i] = freeMap->Find();
+            }
+            synchDisk->WriteSector(dataSectors[IndirectSectorIdx], (char*)indirectIndex);
+            // second indirect
+            dataSectors[DoubleIndirectSectorIdx] = freeMap->Find();
+            const int sectorsLeft = numSectors - NumDirect - LevelMapNum;
+            const int secondIndirectNum = divRoundUp(sectorsLeft, LevelMapNum);
+            int doubleIndirectIndex[LevelMapNum];
+            for (int j = 0; j < secondIndirectNum; j++) {
+                doubleIndirectIndex[j] = freeMap->Find();
+                int singleIndirectIndex[LevelMapNum];
+                for (int i = 0; (i < LevelMapNum) && (i + j * LevelMapNum < sectorsLeft); i++) {
+                    singleIndirectIndex[i] = freeMap->Find();
+                }
+                synchDisk->WriteSector(doubleIndirectIndex[j], (char*)singleIndirectIndex);
+            }
+            synchDisk->WriteSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+        } else {
+            printf("File exceeded the maximum representation of the direct map\n");
+            ASSERT(FALSE);
+        }
+    }
+    return TRUE;
+}
+
+//----------------------------------------------------------------------------------
+
+
 
 //----------------------------------------------------------------------
 // FileHeader::Deallocate
@@ -57,7 +129,7 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
 //
 //	"freeMap" is the bit map of free disk sectors
 //----------------------------------------------------------------------
-
+/*
 void 
 FileHeader::Deallocate(BitMap *freeMap)
 {
@@ -66,6 +138,52 @@ FileHeader::Deallocate(BitMap *freeMap)
 	freeMap->Clear((int) dataSectors[i]);
     }
 }
+*/
+
+
+//--------------------------------------Lab 5-----------------------------------
+void
+FileHeader::Deallocate(BitMap *freeMap)
+{
+    int i, ii, iii; // For direct / single indirect / double indirect indexing
+    DEBUG('f', "==========Deallocating direct indexing table==========\n");
+    for (i = 0; (i < numSectors) && (i < NumDirect); i++) {
+        ASSERT(freeMap->Test((int)dataSectors[i])); // ought to be marked!
+        freeMap->Clear((int)dataSectors[i]);
+    }
+    if (numSectors > NumDirect) {
+        DEBUG('f',"==========Deallocating single indirect indexing table==========\n");
+        int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        for (i = NumDirect, ii = 0; (i < numSectors) && (ii < LevelMapNum); i++, ii++) {
+            ASSERT(freeMap->Test((int)singleIndirectIndex[ii])); // ought to be marked!
+            freeMap->Clear((int)singleIndirectIndex[ii]);
+        }
+        // Free the sector of the single indirect indexing table
+        ASSERT(freeMap->Test((int)dataSectors[IndirectSectorIdx]));
+        freeMap->Clear((int)dataSectors[IndirectSectorIdx]);
+        if (numSectors > NumDirect + LevelMapNum) {
+            DEBUG('f', "==========Deallocating double indirect indexing table==========\n");
+            int doubleIndirectIndex[LevelMapNum];
+            synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+            for (i = NumDirect + LevelMapNum, ii = 0; (i < numSectors) && (ii < LevelMapNum); ii++) {
+                synchDisk->ReadSector(doubleIndirectIndex[ii], (char*)singleIndirectIndex);
+                for (iii = 0; (i < numSectors) && (iii < LevelMapNum); i++, iii++) {
+                    ASSERT(freeMap->Test((int)singleIndirectIndex[iii])); // ought to be marked!
+                    freeMap->Clear((int)singleIndirectIndex[iii]);
+                }
+                // Free the sector of the single indirect indexing table
+                ASSERT(freeMap->Test((int)doubleIndirectIndex[ii]));
+                freeMap->Clear((int)doubleIndirectIndex[ii]);
+            }
+            // Free the sector of the single indirect indexing table
+            ASSERT(freeMap->Test((int)dataSectors[DoubleIndirectSectorIdx]));
+            freeMap->Clear((int)dataSectors[DoubleIndirectSectorIdx]);
+        }
+    }
+}
+//------------------------------------------------------------------------------
+
 
 //----------------------------------------------------------------------
 // FileHeader::FetchFrom
@@ -103,11 +221,41 @@ FileHeader::WriteBack(int sector)
 //	"offset" is the location within the file of the byte in question
 //----------------------------------------------------------------------
 
+/*
 int
 FileHeader::ByteToSector(int offset)
 {
     return(dataSectors[offset / SectorSize]);
 }
+
+*/
+
+//---------------------------Lab 5--------------------------------------------
+int
+FileHeader::ByteToSector(int offset)
+{
+    const int directMapSize = NumDirect * SectorSize;
+    const int singleIndirectMapSize = directMapSize + LevelMapNum * SectorSize;
+    const int doubleIndirectMapSize = singleIndirectMapSize +  LevelMapNum * LevelMapNum * SectorSize;
+
+    if (offset < directMapSize) {
+        return (dataSectors[offset / SectorSize]);
+    } else if (offset < singleIndirectMapSize) {
+        const int sectorNum = (offset - directMapSize) / SectorSize;
+        int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        return singleIndirectIndex[sectorNum];
+    } else {
+        const int indexSectorNum = (offset - singleIndirectMapSize) / SectorSize / LevelMapNum;
+        const int sectorNum = (offset - singleIndirectMapSize) / SectorSize % LevelMapNum;
+        int doubleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+        int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(doubleIndirectIndex[indexSectorNum], (char*)singleIndirectIndex);
+        return singleIndirectIndex[sectorNum];
+    }
+}
+//----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------
 // FileHeader::FileLength
@@ -125,13 +273,17 @@ FileHeader::FileLength()
 // 	Print the contents of the file header, and the contents of all
 //	the data blocks pointed to by the file header.
 //----------------------------------------------------------------------
-
+/*
 void
 FileHeader::Print()
 {
     int i, j, k;
     char *data = new char[SectorSize];
 
+
+    printf("------------ FileHeader contents -------------\n");
+    printf("        File type: %s\n        Created:%s\n        Modified:%s\n        Last visited:%s\n",fileType,createdTime,modifiedTime,lastVisitedTime);
+    
     printf("FileHeader contents.  File size: %d.  File blocks:\n", numBytes);
     for (i = 0; i < numSectors; i++)
 	printf("%d ", dataSectors[i]);
@@ -147,4 +299,133 @@ FileHeader::Print()
         printf("\n"); 
     }
     delete [] data;
+    printf("----------------------------------------------\n");
 }
+*/
+
+//----------------------------Lab 5------------------------------------------
+
+void
+FileHeader::Print()
+{
+    int i, j, k; // current sector / byte position in a sector / current byte position in file
+    char *data = new char[SectorSize];
+
+    // Lab5: additional file attributes
+    printf("------------ %s -------------\n", "FileHeader contents");
+    printf("File type: %s\n", fileType);
+    printf("Created: %s", createdTime);
+    printf("Modified: %s", modifiedTime);
+    printf("Last visited: %s", lastVisitedTime);
+    printf("File size: %d.  File blocks:\n", numBytes);
+    int ii, iii; // For single / double indirect indexing
+    int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+    int doubleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+    printf("  Direct indexing:\n    ");
+    for (i = 0; (i < numSectors) && (i < NumDirect); i++)
+        printf("%d ", dataSectors[i]);
+    if (numSectors > NumDirect) {
+        printf("\n  Indirect indexing: (mapping table sector: %d)\n    ", dataSectors[IndirectSectorIdx]);
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        for (i = NumDirect, ii = 0; (i < numSectors) && (ii < LevelMapNum); i++, ii++)
+            printf("%d ", singleIndirectIndex[ii]);
+        if (numSectors > NumDirect + LevelMapNum) {
+            printf("\n  Double indirect indexing: (mapping table sector: %d)", dataSectors[DoubleIndirectSectorIdx]);
+            synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+            for (i = NumDirect + LevelMapNum, ii = 0; (i < numSectors) && (ii < LevelMapNum); ii++) {
+                printf("\n    single indirect indexing: (mapping table sector: %d)\n      ", doubleIndirectIndex[ii]);
+                synchDisk->ReadSector(doubleIndirectIndex[ii], (char*)singleIndirectIndex);
+                for (iii = 0;  (i < numSectors) && (iii < LevelMapNum); i++, iii++)
+                    printf("%d ", singleIndirectIndex[iii]);
+            }
+        }
+    }
+    printf("\nFile contents:\n");
+    for (i = k = 0; (i < numSectors) && (i < NumDirect); i++)
+    {
+        synchDisk->ReadSector(dataSectors[i], data);
+        for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
+            printChar(data[j]);
+        printf("\n");
+    }
+    if (numSectors > NumDirect) {
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        for (i = NumDirect, ii = 0; (i < numSectors) && (ii < LevelMapNum); i++, ii++) {
+            synchDisk->ReadSector(singleIndirectIndex[ii], data);
+            for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
+                printChar(data[j]);
+            printf("\n");
+        }
+        if (numSectors > NumDirect + LevelMapNum) {
+            synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+            for (i = NumDirect + LevelMapNum, ii = 0; (i < numSectors) && (ii < LevelMapNum); ii++) {
+                synchDisk->ReadSector(doubleIndirectIndex[ii], (char*)singleIndirectIndex);
+                for (iii = 0; (i < numSectors) && (iii < LevelMapNum); i++, iii++) {
+                    synchDisk->ReadSector(singleIndirectIndex[iii], data);
+                    for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
+                        printChar(data[j]);
+                    printf("\n");
+                }
+            }
+        }
+    }
+    printf("----------------------------------------------\n");
+    delete[] data;
+}
+
+
+
+
+//----------------------------------------------------------------------
+// getFileExtension
+//    Extract the file name to get the extension. If the file name don't
+//    have extension then return empty string. 
+//
+//      e.g. test.haha.pdf => "pdf"
+//      e.g. test.txt      => txt
+//      e.g. test.         => ""
+//      e.g. test          => ""
+//----------------------------------------------------------------------
+
+char*
+getFileExtension(char *filename)
+{
+    char *dot = strrchr(filename, '.');
+    if(!dot || dot == filename) return "";
+    return dot + 1;
+}
+
+//----------------------------------------------------------------------
+// getCurrentTime
+//    Return the sting of the time that we called it.
+//
+//    (use asctime to transfer to string)
+//----------------------------------------------------------------------
+
+char*
+getCurrentTime(void)
+{
+    time_t rawtime; 
+    time(&rawtime);
+    struct tm* currentTime = localtime(&rawtime);
+    return asctime(currentTime); // This somehow will generate extra '\n'
+}
+
+//----------------------------------------------------------------------
+// FileHeader::HeaderCreateInit
+//  Set the file type, time informations and other attribute.
+//  Invoke this when create a FileHeader first time.
+//  (not every "new FileHeader")
+//----------------------------------------------------------------------
+
+void
+FileHeader::HeaderCreateInit(char* ext)
+{
+    setFileType(ext);
+
+    char* currentTimeString = getCurrentTime();
+    setCreateTime(currentTimeString);
+    setModifyTime(currentTimeString);
+    setVisitTime(currentTimeString);
+}
+//------------------------------------------------------------------------------

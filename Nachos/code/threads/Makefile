@@ -7,8 +7,8 @@
 # All rights reserved.  See copyright.h for copyright notice and limitation 
 # of liability and disclaimer of warranty provisions.
 
-DEFINES = -DTHREADS  -DUSE_SEMAPHORE  -DUSE_W_R #-DUSE_PREEMPTIVE
-INCPATH = -I../threads -I../machine
+DEFINES = -DTHREADS -DUSE_SEMAPHORE  -DUSE_W_R  -DFILESYS#-DUSE_PREEMPTIVE
+INCPATH = -I../threads -I../machine 
 HFILES = $(THREAD_H)
 CFILES = $(THREAD_C)
 C_OFILES = $(THREAD_O)

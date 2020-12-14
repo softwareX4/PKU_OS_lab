@@ -17,7 +17,7 @@ int testnum = 4;
 
 //-----------Lab3------------
 #include "synch.h"
-
+ 
 //----------------------------------------------------------------------
 // SimpleThread
 // 	Loop 5 times, yielding the CPU to another ready thread 
@@ -296,6 +296,8 @@ Lab3ProducerConsumer()
 //---------------------------------------------------------------------
 
 //------------------------------Lab 3 Challenge------------------------
+
+/*
 WriteReadLock * RWLock;
 
 #define SENTENCE_LENGTH 9
@@ -364,6 +366,7 @@ Lab3WR()
    // Reader3->Fork(ReaderThread, (void*)3);
     currentThread->Yield(); // Yield the main thread
 }
+*/
 //---------------------------------------------------------------------
 
 
@@ -396,7 +399,7 @@ ThreadTest()
     Lab3ProducerConsumer();
     break;
     case 7:
-    Lab3WR();
+    //Lab3WR(); 
     break;
     default:
 	printf("No test specified.\n");
