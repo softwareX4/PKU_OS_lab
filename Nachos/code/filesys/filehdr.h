@@ -20,22 +20,31 @@
 #include <time.h>
 //---------------------Lab 5-------------------------------------
 // Disk part
-#define NumOfIntHeaderInfo 4
+#define NumOfIntHeaderInfo 2
 #define NumOfTimeHeaderInfo 3
 #define LengthOfTimeHeaderStr 26 // 25 + 1 ('/0')
 #define MaxExtLength 5           // 4  + 1 ('/0')
 #define LengthOfAllString MaxExtLength + NumOfTimeHeaderInfo*LengthOfTimeHeaderStr
-#define NumDirect 	((SectorSize  - 2 - (NumOfIntHeaderInfo*sizeof(int) + LengthOfAllString*sizeof(char))) / sizeof(int))
 
-#define IndirectSectorIdx  NumDirect 
-#define DoubleIndirectSectorIdx  NumDirect + 1
-
+#ifndef INDIRECT_MAP
+#define NumDirect 	((SectorSize - (NumOfIntHeaderInfo*sizeof(int) + LengthOfAllString*sizeof(char))) / sizeof(int))
+#define MaxFileSize 	(NumDirect * SectorSize)
+#else
+#define NumDataSectors ((SectorSize - (NumOfIntHeaderInfo*sizeof(int) + LengthOfAllString*sizeof(char))) / sizeof(int))
+#define NumDirect (NumDataSectors - 2)
+#define IndirectSectorIdx (NumDataSectors - 2)
+#define DoubleIndirectSectorIdx (NumDataSectors - 1)
+#define MaxFileSize (NumDirect * SectorSize) + \
+                    ((SectorSize / sizeof(int)) * SectorSize) + \
+                    ((SectorSize / sizeof(int)) * ((SectorSize / sizeof(int)) * SectorSize))
+#endif 
 //---------------------------------------------------------------
 
-#define LevelMapNum 32
 
 //#define NumDirect 	((SectorSize - 2 * sizeof(int)) / sizeof(int))
-#define MaxFileSize 	((NumDirect  + LevelMapNum + LevelMapNum * LevelMapNum )* SectorSize)
+#define MaxFileSize (NumDirect * SectorSize) + \
+                    ((SectorSize / sizeof(int)) * SectorSize) + \
+                    ((SectorSize / sizeof(int)) * ((SectorSize / sizeof(int)) * SectorSize))
 
 // The following class defines the Nachos "file header" (in UNIX terms,  
 // the "i-node"), describing where on disk to find all of the data in the file.
@@ -84,16 +93,27 @@ class FileHeader {
     // In-core part
     void setHeaderSector(int sector) { headerSector = sector; }
     int getHeaderSector() { return headerSector; }
+    char * getFileType() { return fileType; }
 
+    
+    // Lab5: expand file size 
+    bool ExpandFileSize(BitMap *freeMap, int additionalBytes);
 
   private:
   //--------------------------Disk Part------------------------------------
     int numBytes;			// Number of bytes in the file
     int numSectors;			// Number of data sectors in the file
-    int dataSectors[NumDirect + 2];		// Disk sector numbers for each data 
-					// block in the file
 
           
+    // == Data Sectors == //
+#ifndef INDIRECT_MAP
+    int dataSectors[NumDirect]; // Disk sector numbers for each data
+                                // block in the file
+#else
+    int dataSectors[NumDataSectors]; // Disk sector numbers for each data
+                                     // block in the file
+                                     // the last two of them are indirect block
+#endif
     // Lab5: additional file attributes
     char fileType[MaxExtLength];
     char createdTime[LengthOfTimeHeaderStr];
@@ -115,3 +135,34 @@ char* getFileExtension(char *filename);
 char* getCurrentTime(void);
 
 #endif // FILEHDR_H
+
+
+
+
+#include <libgen.h> // dirname, basename
+#include <string.h> // strdup
+
+//---------Lab 4 multi-dir------------------
+#ifdef MULTI_LEVEL_DIR
+#define MAX_DIR_DEPTH 5 
+typedef struct {
+    char* dirArray[MAX_DIR_DEPTH];
+    int dirDepth; // if root dir, dir depth = 0
+    char* base;
+} FilePath;
+
+
+//----------------------------------------------------------------------
+// pathParser
+//    Extract the filePath into dirname and base name.
+//    The retuen value is using the call by reference.
+// 
+//    filePath: "/foo/bar/baz.txt"
+//    dir: ["foo", "bar"]
+//    base: "baz.txt"
+//----------------------------------------------------------------------
+
+FilePath pathParser(char* path);
+
+
+#endif 

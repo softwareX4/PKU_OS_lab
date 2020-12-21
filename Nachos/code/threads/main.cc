@@ -63,10 +63,14 @@ extern int testnum;
 // External functions used by this file
 
 extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
-extern void Print(char *file), PerformanceTest(void);
+extern void Print(char *file), PerformanceTest(void),MakeDir(char *dirname);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 
+
+extern void SynchConsoleTest(char *in, char *out); // Lab5: Synchronous console
+
+bool VERBOSE = TRUE;
 //----------------------------------------------------------------------
 // main
 // 	Bootstrap the operating system kernel.  
@@ -111,6 +115,8 @@ main(int argc, char **argv)
 	argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
+        if (!strcmp(*argv, "-Q")) // be quiet (disable dummy machine message)
+            VERBOSE = FALSE;
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);
@@ -128,6 +134,18 @@ main(int argc, char **argv)
 					// Nachos will loop forever waiting 
 					// for console input
 	}
+    else if (!strcmp(*argv, "-sc")) { // test the synchronous console
+            if (argc == 1) {
+                SynchConsoleTest(NULL, NULL);
+            } else {
+                ASSERT(argc > 2);
+                SynchConsoleTest(*(argv + 1), *(argv + 2));
+                argCount = 3;
+            }
+            interrupt->Halt(); // once we start the console, then
+                               // Nachos will loop forever waiting
+                               // for console input
+        }
 #endif // USER_PROGRAM
 #ifdef FILESYS
 	if (!strcmp(*argv, "-cp")) { 		// copy from UNIX to Nachos
@@ -149,6 +167,23 @@ main(int argc, char **argv)
 	} else if (!strcmp(*argv, "-t")) {	// performance test
             PerformanceTest();
 	}
+#ifdef MULTI_LEVEL_DIR 
+        // Lab5: Directory Operations
+        else if (!strcmp(*argv, "-mkdir")) { // make directory
+            ASSERT(argc > 1);
+            MakeDir(*(argv + 1));
+            argCount = 2;
+        } else if (!strcmp(*argv, "-rd")) { // remove Nachos file or directory recursively (i.e. rm -r in UNIX)
+            ASSERT(argc > 1); 
+            bool success = fileSystem->RemoveDir(*(argv + 1));
+            ASSERT_MSG(success, "Remove directory fail!");
+            argCount = 2;
+        } else if (!strcmp(*argv, "-ld")) { // list Nachos directory
+            ASSERT(argc > 1);
+            fileSystem->ListDir(*(argv + 1));
+            argCount = 2;
+        }
+#endif // MULTI_LEVEL_DIR
 #endif // FILESYS
 #ifdef NETWORK
         if (!strcmp(*argv, "-o")) {

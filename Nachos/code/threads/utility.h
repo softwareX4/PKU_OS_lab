@@ -80,6 +80,12 @@ extern void DEBUG (char flag, char* format, ...);  	// Print debug message
 	fflush(stderr);							      \
         Abort();                                                              \
     }
+#define  ASSERT_MSG(condition, msg)                                           \
+    if (!(condition)) {                                                       \
+        fprintf(stderr, "%s\n",msg);                                          \
+	fflush(stderr);							      \
+        Abort();                                                              \
+    }
 
 
 #endif // UTILITY_H

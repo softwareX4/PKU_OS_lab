@@ -26,6 +26,7 @@
 #define NumDirEntries 10 // originally defined in fileysys/filesys.cc
 #define FileNameMaxLen (((SectorSize - (sizeof(bool) + sizeof(int)) * NumDirEntries) / sizeof(char)) - 1)
 
+
 // The following class defines a "directory entry", representing a file
 // in the directory.  Each entry gives the name of the file, and where
 // the file's header is to be found on disk.

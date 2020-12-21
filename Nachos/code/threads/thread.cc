@@ -65,7 +65,7 @@
 #endif
 
 const char* TStoString[] = {"JUST_CREATED", "RUNNING", "READY", "BLOCKED"};
-printf("Thread(uid=%d,tid=%d,name=%s,status=%s) is created SUCCESSFULLY! \n",userId,threadId,threadName,TStoString[status]);
+DEBUG("D","Thread(uid=%d,tid=%d,name=%s,status=%s) is created SUCCESSFULLY! \n",userId,threadId,threadName,TStoString[status]);
   }
 Thread::Thread(char* threadName,int pri):Thread(threadName,pri,0)
 { 

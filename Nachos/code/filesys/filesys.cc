@@ -63,6 +63,9 @@
 #define FreeMapFileSize 	(NumSectors / BitsInByte)
 #define NumDirEntries 		10
 #define DirectoryFileSize 	(sizeof(DirectoryEntry) * NumDirEntries)
+#ifdef MULTI_LEVEL_DIR
+#define IsDirFile(fileHdr) (!strcmp(fileHdr->getFileType(), DirFileExt))
+#endif
 
 //----------------------------------------------------------------------
 // FileSystem::FileSystem
@@ -85,7 +88,7 @@ FileSystem::FileSystem(bool format)
         Directory *directory = new Directory(NumDirEntries);
 	FileHeader *mapHdr = new FileHeader;
     mapHdr->HeaderCreateInit("BMap");
-	FileHeader *dirHdr = new FileHeader;
+	FileHeader *dirHdr = new FileHeader; 
     dirHdr->HeaderCreateInit("DirH");
 
         DEBUG('f', "Formatting the file system.\n");
@@ -182,10 +185,32 @@ FileSystem::Create(char *name, int initialSize)
     int sector;
     bool success;
 
+#ifdef MULTI_LEVEL_DIR
+    bool isDir = FALSE;
+    if(initialSize == -1){
+        isDir = TRUE;
+        initialSize = DirectoryFileSize;
+    DEBUG('f', "Creating directory %s, size %d\n", name, initialSize);
+    }
+    else
+#endif
     DEBUG('f', "Creating file %s, size %d\n", name, initialSize);
 
     directory = new Directory(NumDirEntries);
+
+#ifndef MULTI_LEVEL_DIR
     directory->FetchFrom(directoryFile);
+#else
+    int dirSector = FindDirSector(name);
+    ASSERT_MSG(dirSector != -1, "Make sure you create file/dir in the existing directory.");
+
+    OpenFile * dirFile = new OpenFile(dirSector);
+    directory->FetchFrom(dirFile);
+    FilePath filepath = pathParser(name);
+    if(filepath.dirDepth > 0){
+        name = filepath.base;
+    }
+#endif // !MULTI_LEVEL_DIR
 
     if (directory->Find(name) != -1)
       success = FALSE;			// file is already in directory
@@ -203,11 +228,31 @@ FileSystem::Create(char *name, int initialSize)
             	success = FALSE;	// no space on disk for data
 	    else {	
 	    	success = TRUE;
+#ifdef MULTI_LEVEL_DIR 
+                if (isDir)
+                    hdr->HeaderCreateInit(DirFileExt);
+                else
+#endif 
+
             hdr->HeaderCreateInit(getFileExtension(name)); // Lab5: additional file attributes
 		// everthing worked, flush all changes back to disk
-    	    	hdr->WriteBack(sector); 		
-    	    	directory->WriteBack(directoryFile);
+   	    	hdr->WriteBack(sector); 	
+#ifndef MULTI_LEVEL_DIR
+                directory->WriteBack(directoryFile);
+#else	
+    	    	if(isDir){
+                    Directory * dir = new Directory(NumDirEntries);
+                    OpenFile * subDirFile = new OpenFile(sector);
+                    dir->WriteBack(subDirFile);
+                    delete dir;
+                    delete subDirFile;
+                }
+                directory->WriteBack(dirFile);
+                delete dirFile;
+#endif
     	    	freeMap->WriteBack(freeMapFile);
+                
+        printf("Create %s in sector %d\n",name,sector);
 	    }
             delete hdr;
 	}
@@ -230,12 +275,21 @@ FileSystem::Create(char *name, int initialSize)
 OpenFile *
 FileSystem::Open(char *name)
 { 
-    Directory *directory = new Directory(NumDirEntries);
+    Directory *directory ;
     OpenFile *openFile = NULL;
     int sector;
 
     DEBUG('f', "Opening file %s\n", name);
+#ifndef MULTI_LEVEL_DIR
+    directory = new Directory(NumDirEntries);
     directory->FetchFrom(directoryFile);
+#else
+    directory = (Directory*)FindDir(name);
+    FilePath filepath = pathParser(name);
+    if (filepath.dirDepth > 0) {
+        name = filepath.base;
+    }
+#endif
     sector = directory->Find(name); 
     if (sector >= 0) 		
 	openFile = new OpenFile(sector);	// name was found in directory 
@@ -265,8 +319,16 @@ FileSystem::Remove(char *name)
     FileHeader *fileHdr;
     int sector;
     
+#ifndef MULTI_LEVEL_DIR
     directory = new Directory(NumDirEntries);
     directory->FetchFrom(directoryFile);
+#else
+    directory = (Directory*)FindDir(name);
+    FilePath filepath = pathParser(name);
+    if (filepath.dirDepth > 0) {
+        name = filepath.base;
+    }
+#endif
     sector = directory->Find(name);
     if (sector == -1) {
        delete directory;
@@ -274,6 +336,15 @@ FileSystem::Remove(char *name)
     }
     fileHdr = new FileHeader;
     fileHdr->FetchFrom(sector);
+#ifdef MULTI_LEVEL_DIR
+    if (IsDirFile(fileHdr)) {
+        DEBUG('D',"Reject the remove operation (attempt to delete a directory).\n");
+        delete directory;
+        delete fileHdr;
+        return FALSE; // directory File
+    }
+#endif
+
 
     freeMap = new BitMap(NumSectors);
     freeMap->FetchFrom(freeMapFile);
@@ -342,3 +413,134 @@ FileSystem::Print()
     delete freeMap;
     delete directory;
 } 
+
+
+
+#ifdef MULTI_LEVEL_DIR
+//----------------------------------------------------------------------
+// FileSystem::FindDirSector
+// 	Look up directory in sub-directory, and return the disk sector number
+//	where the file's header is stored. Return -1 if the filePath isn't 
+//	in the directory or its sub-directory.
+//----------------------------------------------------------------------
+
+int
+FileSystem::FindDirSector(char *filePath)
+{
+    FilePath filepath = pathParser(filePath);
+
+    int sector = DirectorySector; // Start from root
+
+    if(filepath.dirDepth != 0) { // i.e. not root
+        OpenFile* dirFile;
+        Directory* dirTemp;
+
+        for(int i = 0; i < filepath.dirDepth; i++) {
+            DEBUG('D', "Finding directory \"%s\" in sector \"%d\"\n", filepath.dirArray[i], sector);
+            dirFile = new OpenFile(sector);
+            dirTemp = new Directory(NumDirEntries);
+            dirTemp->FetchFrom(dirFile);
+            sector = dirTemp->Find(filepath.dirArray[i]);
+            if (sector == -1)
+                break; // Not found
+        }
+        delete dirFile;
+        delete dirTemp;
+    }
+    return sector;
+}
+
+
+
+//----------------------------------------------------------------------
+// FileSystem::FindDir
+// 	Look up directory in sub-directory, and get the disk sector number
+//	where the file's header is stored. Return empty Directory if the filePath
+//  isn't in the directory or its sub-directory.
+//----------------------------------------------------------------------
+
+void*
+FileSystem::FindDir(char *filePath)
+{
+    Directory* returnDir = new Directory(NumDirEntries);
+    int sector = FindDirSector(filePath);
+
+    if(sector == DirectorySector) { // i.e. root
+        returnDir->FetchFrom(directoryFile);
+    } else if (sector != -1) {
+        OpenFile* dirFile = new OpenFile(sector);
+        returnDir->FetchFrom(dirFile);
+        delete dirFile;
+    } else {
+        DEBUG('D',  "No such directory. (might be deleted)\n");
+    }
+
+    return (void *)returnDir;
+}
+
+
+
+
+//----------------------------------------------------------------------
+// FileSystem::RemoveDir (TBD)
+// 	Delete a directory from the file system recursively.
+//----------------------------------------------------------------------
+
+bool
+FileSystem::RemoveDir(char *name)
+{ 
+    Directory *directory;
+    BitMap *freeMap;
+    FileHeader *fileHdr;
+    //int sector;
+
+    directory = (Directory*)FindDir(name);
+    FilePath filepath = pathParser(name);
+
+    int sector = FindDirSector(name);
+
+     if (filepath.dirDepth > 0) {
+        name = filepath.base;
+    }
+
+// TODO: Recursive delete (Free the space)
+    sector = directory->Find(name);
+    
+   // sector = directory->Find(name);
+    if (sector == -1) {
+       delete directory;
+       return FALSE;			 // file not found 
+    }
+    fileHdr = new FileHeader;
+    fileHdr->FetchFrom(sector);
+
+    //printf("name=%s,sector=%d\n",name,sector);
+    freeMap = new BitMap(NumSectors);
+    freeMap->FetchFrom(freeMapFile);
+
+    fileHdr->Deallocate(freeMap);  		// remove data blocks
+    freeMap->Clear(sector);			// remove header block
+    directory->Remove(name);
+
+    freeMap->WriteBack(freeMapFile);		// flush to disk
+    directory->WriteBack(directoryFile);        // flush to disk
+    delete fileHdr;
+    delete directory;
+    delete freeMap;
+    return TRUE;
+}
+
+//----------------------------------------------------------------------
+// FileSystem::ListDir
+// 	List all the files in the file system directory.
+//----------------------------------------------------------------------
+
+void
+FileSystem::ListDir(char* name)
+{
+    printf("List Directory: %s\n", name);
+    Directory *directory = (Directory*)FindDir(strcat(name, "/arbitrary"));
+    directory->List();
+    delete directory;
+}
+#endif // MULTI_LEVEL_DIR

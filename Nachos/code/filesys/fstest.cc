@@ -169,17 +169,63 @@ FileRead()
     delete openFile;	// close file
 }
 
+
+//----------Lab4 exercise7 ---------------
+void read(int dump){
+    printf("%s begin reading\n",currentThread->getName());
+    FileRead();
+}
+
 void
 PerformanceTest()
 {
     printf("Starting file system performance test:\n");
     stats->Print();
     FileWrite();
+/*
+Thread * thread1 = new Thread("thread1");
+thread1->Fork(read,1);
+FileRead();
+printf("%s remove the file\n",currentThread ->getName());
+fileSystem->Remove(FileName);
+*/
+
     FileRead();
     if (!fileSystem->Remove(FileName)) {
       printf("Perf test: unable to remove %s\n", FileName);
       return;
     }
     stats->Print();
+}
+
+#ifdef Pipe
+void PerformanceTest1(){
+    printf("thread 1 write data to the pipe\n");
+    char input[SectorSize + 1];
+    printf("input:");
+    scanf("%s",input);
+    fileSyetem->WritePipe(input,strlen(input));
+}
+
+void PerformanceTest2(){
+    printf("thread 2 read data from the pipe\n");
+    char data[SectorSize + 1];
+    int length = fileSyetem->ReadPipe(data);
+    data[length] = '\0';
+    printf("%s\n",data);
+}
+#endif //Pipe
+
+//----------------------------------------------------------------------
+// MakeDir
+// 	Making the directory with name "dirname" in Nachos file system
+//----------------------------------------------------------------------
+
+void
+MakeDir(char *dirname)
+{
+    DEBUG('D',  "Making directory: %s\n", dirname);
+    fileSystem->Create(dirname, -1);
+    // -1 means DirectoryFileSize
 }
 

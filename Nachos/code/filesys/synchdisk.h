@@ -42,12 +42,28 @@ class SynchDisk {
 					// handler, to signal that the
 					// current disk operation is complete.
 
+          //------------------------Lab 4----------------------
+          void PlusReader(int sector);
+          void MinusReader(int sector);
+          void BeginWriter(int sector);
+          void EndWriter(int sector);
+          //--------------------------------------------------- 
+
+      int numVisitors[NumSectors];
   private:
     Disk *disk;		  		// Raw disk device
     Semaphore *semaphore; 		// To synchronize requesting thread 
 					// with the interrupt handler
     Lock *lock;		  		// Only one read/write request
 					// can be sent to the disk at a time
+
+
+      //----------------------Lab 4-------------------------------
+      Semaphore *mutex[NumSectors];   // file visit num
+      int numReaders[NumSectors];     // reader num
+      Lock *readerLock;               //reader num semaphore
+
+      //----------------------------------------------------------
 };
 
 #endif // SYNCHDISK_H

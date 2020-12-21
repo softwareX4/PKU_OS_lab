@@ -18,7 +18,7 @@
 #ifdef HOST_SPARC
 #include <strings.h>
 #endif
-
+#define FreeMapSector 0
 //----------------------------------------------------------------------
 // OpenFile::OpenFile
 // 	Open a Nachos file for reading and writing.  Bring the file header
@@ -34,6 +34,7 @@ OpenFile::OpenFile(int sector)
     hdr->setHeaderSector(sector); // Necessary, because we need to update
                                   // FileHeader(i-node) later on.
     seekPosition = 0;
+    synchDisk -> numVisitors[hdr->getHeaderSector()]++;
 }
 
 //----------------------------------------------------------------------
@@ -44,7 +45,9 @@ OpenFile::OpenFile(int sector)
 OpenFile::~OpenFile()
 {
     
+    synchDisk -> numVisitors[hdr->getHeaderSector()]--;
     hdr->WriteBack(hdr->getHeaderSector()); // Update the header info
+    
     delete hdr;
 }
 
@@ -78,16 +81,27 @@ OpenFile::Seek(int position)
 int
 OpenFile::Read(char *into, int numBytes)
 {
+    synchDisk -> PlusReader(hdr->getHeaderSector());
+
    int result = ReadAt(into, numBytes, seekPosition);
+
+   currentThread->Yield();
+
    seekPosition += result;
+
+   synchDisk -> MinusReader(hdr->getHeaderSector());
    return result;
 }
 
 int
 OpenFile::Write(char *into, int numBytes)
 {
+    synchDisk -> BeginWriter(hdr->getHeaderSector());
    int result = WriteAt(into, numBytes, seekPosition);
+   currentThread -> Yield();
    seekPosition += result;
+   
+    synchDisk -> EndWriter(hdr->getHeaderSector());
    return result;
 }
 
@@ -163,6 +177,19 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
     int i, firstSector, lastSector, numSectors;
     bool firstAligned, lastAligned;
     char *buf;
+ 
+    // Lab5: dynamic allocate file size
+    if (position + numBytes > fileLength) {
+        BitMap *freeMap = new BitMap(NumSectors);
+        OpenFile* freeMapFile = new OpenFile(FreeMapSector);
+        freeMap->FetchFrom(freeMapFile);
+        hdr->ExpandFileSize(freeMap, position + numBytes - fileLength);
+        hdr->WriteBack(hdr->getHeaderSector());
+        freeMap->WriteBack(freeMapFile);
+        delete freeMapFile;
+        fileLength = hdr->FileLength();
+    }
+
 
     if ((numBytes <= 0) || (position >= fileLength))
 	return 0;				// check request

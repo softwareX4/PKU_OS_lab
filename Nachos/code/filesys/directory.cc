@@ -136,6 +136,7 @@ Directory::Add(char *name, int newSector)
         if (!table[i].inUse) {
             table[i].inUse = TRUE;
             strncpy(table[i].name, name, FileNameMaxLen); 
+            printf("FileNameMaxLen:%d\n",FileNameMaxLen);
             table[i].sector = newSector;
         return TRUE;
 	}

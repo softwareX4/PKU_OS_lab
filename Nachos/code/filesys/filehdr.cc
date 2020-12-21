@@ -26,6 +26,8 @@
 
 #include "system.h"
 #include "filehdr.h"
+
+#define LevelMapNum (SectorSize / sizeof(int)) 
 //----------------------------------------------------------------------
 // FileHeader::Allocate
 // 	Initialize a fresh file header for a newly created file.
@@ -59,7 +61,6 @@ void printChar(char x){
 		printf("\\%x", (unsigned char)x);
 }
 
-
 bool
 FileHeader::Allocate(BitMap *freeMap, int fileSize)
 {
@@ -69,14 +70,17 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
         return FALSE; // not enough space
 
     if (numSectors < NumDirect) {
-        DEBUG('f',"==========Allocating using direct indexing only==========\n");
+        DEBUG('f', "Allocating using direct indexing only\n" );
         for (int i = 0; i < numSectors; i++)
             dataSectors[i] = freeMap->Find();
     } else {
+#ifndef INDIRECT_MAP
+        ASSERT_MSG(FALSE, "File size exceeded the maximum representation of the direct map");
+#else
         if (numSectors < (NumDirect + LevelMapNum)) {
-            DEBUG('f',  "==========Allocating using single indirect indexing==========\n");
+            DEBUG('f', "Allocating using single indirect indexing\n");
             // direct
-            for (int i = 0; i < NumDirect ; i++)
+            for (int i = 0; i < NumDirect; i++)
                 dataSectors[i] = freeMap->Find();
             // indirect
             dataSectors[IndirectSectorIdx] = freeMap->Find();
@@ -86,7 +90,7 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
             }
             synchDisk->WriteSector(dataSectors[IndirectSectorIdx], (char*)indirectIndex);
         } else if (numSectors < (NumDirect + LevelMapNum + LevelMapNum*LevelMapNum)) {
-            DEBUG('f', "==========Allocating using double indirect indexing==========\n");
+            DEBUG('f',  "Allocating using double indirect indexing\n");
             // direct
             for (int i = 0; i < NumDirect; i++)
                 dataSectors[i] = freeMap->Find();
@@ -112,12 +116,13 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
             }
             synchDisk->WriteSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
         } else {
-            printf("File exceeded the maximum representation of the direct map\n");
-            ASSERT(FALSE);
+            ASSERT_MSG(FALSE, "File size exceeded the maximum representation of the double indirect mapping");
         }
+#endif
     }
     return TRUE;
 }
+
 
 //----------------------------------------------------------------------------------
 
@@ -145,14 +150,20 @@ FileHeader::Deallocate(BitMap *freeMap)
 void
 FileHeader::Deallocate(BitMap *freeMap)
 {
+#ifndef INDIRECT_MAP
+    for (int i = 0; i < numSectors; i++) {
+        ASSERT(freeMap->Test((int)dataSectors[i])); // ought to be marked!
+        freeMap->Clear((int)dataSectors[i]);
+    }
+#else
     int i, ii, iii; // For direct / single indirect / double indirect indexing
-    DEBUG('f', "==========Deallocating direct indexing table==========\n");
+    DEBUG('f', "Deallocating direct indexing table\n");
     for (i = 0; (i < numSectors) && (i < NumDirect); i++) {
         ASSERT(freeMap->Test((int)dataSectors[i])); // ought to be marked!
         freeMap->Clear((int)dataSectors[i]);
     }
     if (numSectors > NumDirect) {
-        DEBUG('f',"==========Deallocating single indirect indexing table==========\n");
+        DEBUG('f',  "Deallocating single indirect indexing table\n");
         int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
         synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
         for (i = NumDirect, ii = 0; (i < numSectors) && (ii < LevelMapNum); i++, ii++) {
@@ -163,7 +174,7 @@ FileHeader::Deallocate(BitMap *freeMap)
         ASSERT(freeMap->Test((int)dataSectors[IndirectSectorIdx]));
         freeMap->Clear((int)dataSectors[IndirectSectorIdx]);
         if (numSectors > NumDirect + LevelMapNum) {
-            DEBUG('f', "==========Deallocating double indirect indexing table==========\n");
+            DEBUG('f', "Deallocating double indirect indexing table\n");
             int doubleIndirectIndex[LevelMapNum];
             synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
             for (i = NumDirect + LevelMapNum, ii = 0; (i < numSectors) && (ii < LevelMapNum); ii++) {
@@ -181,6 +192,7 @@ FileHeader::Deallocate(BitMap *freeMap)
             freeMap->Clear((int)dataSectors[DoubleIndirectSectorIdx]);
         }
     }
+#endif
 }
 //------------------------------------------------------------------------------
 
@@ -234,6 +246,9 @@ FileHeader::ByteToSector(int offset)
 int
 FileHeader::ByteToSector(int offset)
 {
+#ifndef INDIRECT_MAP
+    return (dataSectors[offset / SectorSize]);
+#else
     const int directMapSize = NumDirect * SectorSize;
     const int singleIndirectMapSize = directMapSize + LevelMapNum * SectorSize;
     const int doubleIndirectMapSize = singleIndirectMapSize +  LevelMapNum * LevelMapNum * SectorSize;
@@ -254,6 +269,7 @@ FileHeader::ByteToSector(int offset)
         synchDisk->ReadSector(doubleIndirectIndex[indexSectorNum], (char*)singleIndirectIndex);
         return singleIndirectIndex[sectorNum];
     }
+#endif
 }
 //----------------------------------------------------------------------------
 
@@ -317,7 +333,20 @@ FileHeader::Print()
     printf("Created: %s", createdTime);
     printf("Modified: %s", modifiedTime);
     printf("Last visited: %s", lastVisitedTime);
+    // printf("\tPath: %s\n", filePath); // uncomment when we need it
     printf("File size: %d.  File blocks:\n", numBytes);
+#ifndef INDIRECT_MAP
+    for (i = 0; i < numSectors; i++)
+        printf("%d ", dataSectors[i]);
+    printf("\nFile contents:\n");
+    for (i = k = 0; i < numSectors; i++)
+    {
+        synchDisk->ReadSector(dataSectors[i], data);
+        for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
+            printChar(data[j]);
+        printf("\n"); // Reach the end of sector or the end of file
+    }
+#else
     int ii, iii; // For single / double indirect indexing
     int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
     int doubleIndirectIndex[LevelMapNum]; // used to restore the indexing map
@@ -369,11 +398,57 @@ FileHeader::Print()
             }
         }
     }
+#endif
     printf("----------------------------------------------\n");
     delete[] data;
 }
 
 
+
+// Lab5: dynamic allocate file size
+
+//----------------------------------------------------------------------
+// FileHeader::ExpandFileSize
+// 	Reallocate the file size for additionalBytes
+//----------------------------------------------------------------------
+
+bool
+FileHeader::ExpandFileSize(BitMap *freeMap, int additionalBytes)
+{
+    ASSERT(additionalBytes > 0);
+    numBytes += additionalBytes;
+    int initSector = numSectors;
+    numSectors = divRoundUp(numBytes, SectorSize);
+    if (initSector == numSectors) {
+        return TRUE; // no need more sector
+    }
+    int sectorsToExpand = numSectors - initSector;
+    if (freeMap->NumClear() < sectorsToExpand) {
+        return FALSE; // no more space to allocate
+    }
+
+    DEBUG('f',"<====  Expanding file size for %d sectors (%d bytes) ====>\n", sectorsToExpand, additionalBytes);
+
+    if (numSectors < NumDirect) { // just like FileHeader::Allocate 
+        for (int i = initSector; i < numSectors; i++)
+            dataSectors[i] = freeMap->Find();
+    } else {
+#ifndef INDIRECT_MAP
+        ASSERT_MSG(FALSE, "File size exceeded the maximum representation of the direct map");
+#else
+
+// TODO: Expand file size in indirect mapping mode
+
+        if (numSectors < (NumDirect + LevelMapNum)) {
+        } else if (numSectors < (NumDirect + LevelMapNum + LevelMapNum*LevelMapNum)) {
+        } else {
+            ASSERT_MSG(FALSE, "File size exceeded the maximum representation of the double indirect mapping");
+        }
+#endif
+    }
+
+    return TRUE;
+}
 
 
 //----------------------------------------------------------------------
@@ -429,3 +504,48 @@ FileHeader::HeaderCreateInit(char* ext)
     setVisitTime(currentTimeString);
 }
 //------------------------------------------------------------------------------
+
+
+
+
+#ifdef MULTI_LEVEL_DIR
+//----------------------------------------------------------------------
+// pathParser
+//    Extract the filePath into dirname and base name.
+//    The retuen value is using the call by reference.
+// 
+//    filePath: "/foo/bar/baz.txt"
+//    dir: ["foo", "bar"]
+//    base: "baz.txt"
+//----------------------------------------------------------------------
+
+FilePath
+pathParser(char* path)
+{
+    if (path[0] == '/')
+        path = &path[1]; // Don't count the first '/'
+
+    char* ts1 = strdup(path);
+    char* ts2 = strdup(path);
+
+    FilePath filepath;
+
+    // The return of basename() will be the copy pointer of input!!
+    char* currentDir = dirname(ts1);
+    filepath.base = strdup(basename(ts2)); 
+
+    // See how depth the path is
+    int depth;
+    for (depth = 0; path[depth]; path[depth] == '/' ? depth++ : *path++);
+    filepath.dirDepth = depth;
+    ASSERT_MSG(depth <= MAX_DIR_DEPTH, "The file path depth is exceed the max directory depth");
+
+    // Not in current directory. Travel to the directory
+    while (strcmp(currentDir, ".")) { // while currentDir is not "."
+        filepath.dirArray[--depth] = strdup(basename(currentDir));
+        currentDir = dirname(currentDir);
+    }
+
+    return filepath;
+}
+#endif // DEBUG

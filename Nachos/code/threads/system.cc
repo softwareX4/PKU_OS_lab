@@ -208,6 +208,7 @@ Initialize(int argc, char **argv)
 void
 Cleanup()
 {
+    if(VERBOSE)
     printf("\nCleaning up...\n");
    // delete tFlag[];
 #ifdef NETWORK

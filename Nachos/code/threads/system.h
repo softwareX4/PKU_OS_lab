@@ -37,6 +37,8 @@ extern Timer *timer;				// the hardware alarm clock
 extern bool tFlag[];  //if thread num is max
 extern Thread * allThread[];
 //-------------------------------------------
+// The "-Q" quiet flag
+extern bool VERBOSE; // print message when machine Halt in machine/interrupt.cc
 
 
 

@@ -107,3 +107,49 @@ SynchDisk::RequestDone()
 { 
     semaphore->V();
 }
+
+
+
+
+
+//-------------------Lab 4---------------------
+
+void
+SynchDisk::PlusReader(int sector)
+{ 
+    readerLock->Acquire();
+    numReaders[sector]++;
+    if(numReaders[sector]==1){
+        mutex[sector] -> P();
+    }
+    printf("reader cnt:%d\n",numReaders[sector]);
+    readerLock ->Release();
+}
+
+
+void
+SynchDisk::MinusReader(int sector)
+{ 
+    readerLock -> Acquire();
+    numReaders[sector]--;
+    if(numReaders[sector] == 0){
+        mutex[sector] -> V();
+    }
+    printf("reader cnt: %d\n",numReaders[sector]);
+    readerLock ->Release();
+}
+
+
+void
+SynchDisk::BeginWriter(int sector)
+{ 
+    mutex[sector] -> P();
+}
+
+
+void
+SynchDisk::EndWriter(int sector)
+{ 
+    mutex[sector] -> V();
+}
+
