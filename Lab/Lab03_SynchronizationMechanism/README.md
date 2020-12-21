@@ -1,11 +1,40 @@
 
-# Lab4 同步机制 实习说明
+# Lab3 同步机制 实习说明
 
 本实习希望通过修改Nachos系统平台的底层源代码，达到“扩展同步机制，实现同步互斥实例”的目标。
 
 【实习内容】
+- [Lab3 同步机制 实习说明](#lab3----------)
+  * [Exercise 1  调研](#exercise-1----)
+  * [Exercise 2  源代码阅读](#exercise-2-------)
+    + [synch.h scynch.cc](#synchh-scynchcc)
+    + [synchlist.h synchlist.cc](#synchlisth-synchlistcc)
+  * [Exercise 3  实现锁和条件变量](#exercise-3----------)
+    + [Lock](#lock)
+      - [基本思路](#----)
+      - [Acquire](#acquire)
+      - [Realease](#realease)
+    + [Condition](#condition)
+      - [基本思路](#-----1)
+      - [Wait](#wait)
+      - [Signal](#signal)
+      - [Broadcast](#broadcast)
+  * [Exercise 4  实现同步互斥实例](#exercise-4----------)
+    + [Buffer 有界缓冲区](#buffer------)
+    + [Semaphore](#semaphore)
+    + [Lock && Condition](#lock----condition)
+  * [*Challenge 1  实现barrier（至少选做一个Challenge）](#-challenge-1----barrier-------challenge-)
+  * [*Challenge 2  实现read/write lock](#-challenge-2----read-write-lock)
+  * [*Challenge 3  研究Linux的kfifo机制是否可以移植到Nachos上作为一个新的同步模块。](#-challenge-3----linux-kfifo---------nachos------------)
+  * [问题](#--)
+  * [参考文献](#----)
+  * [附录](#--)
+    + [条件变量](#----)
+      - [用处](#--)
+      - [为什么和互斥锁一起使用](#-----------)
+      - [优点](#--)
 
-[TOC]
+
 
 ## Exercise 1  调研
 调研Linux中实现的同步机制。具体内容见课堂要求。
