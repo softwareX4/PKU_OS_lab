@@ -47,7 +47,7 @@
             tFlag[i] = true;
             threadId = i;
             allThread[threadId] = this;
-            f = true;
+            f = true; 
             break;
         }
     }
@@ -394,4 +394,6 @@ Thread::RestoreUserState()
     for (int i = 0; i < NumTotalRegs; i++)
 	machine->WriteRegister(i, userRegisters[i]);
 }
+
 #endif
+

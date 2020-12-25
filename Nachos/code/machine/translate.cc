@@ -38,6 +38,9 @@
 // simulated machine's format of little endian.  These end up
 // being NOPs when the host machine is also little endian (DEC and Intel).
 
+// Lab4: Used for calculate TLB Miss rate (debug purpose)
+int TLBMissCount = 0;
+int TranslateCount = 0;
 unsigned int
 WordToHost(unsigned int word) {
 #ifdef HOST_IS_BIG_ENDIAN
@@ -197,67 +200,35 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 
     DEBUG('a', "\tTranslate 0x%x, %s: ", virtAddr, writing ? "write" : "read");
 
+	TranslateCount++; // Lab4: Used for calculate TLB Miss rate (debug purpose)
+
 // check for alignment errors
     if (((size == 4) && (virtAddr & 0x3)) || ((size == 2) && (virtAddr & 0x1))){
 	DEBUG('a', "alignment problem at %d, size %d!\n", virtAddr, size);
 	return AddressErrorException;
     }
     
-    // we must have either a TLB or a page table, but not both!
-	//----Lab 2 TLB  -----
-  //  ASSERT(tlb == NULL || pageTable == NULL);	
-  //  ASSERT(tlb != NULL || pageTable != NULL);	
+	// Lab4: TLB
+    // we must have either a TLB or a page table, but not both! (this is just the original assumption)
+    // ASSERT(tlb == NULL || pageTable == NULL);
+    ASSERT(tlb != NULL || pageTable != NULL);	
 
 // calculate the virtual page number, and offset within the page,
 // from the virtual address
-
     vpn = (unsigned) virtAddr / PageSize;
     offset = (unsigned) virtAddr % PageSize;
-	
-			
-#ifdef USE_BITMAP 
-	//printf("VPN\tPPN\tvalid\n");
-	bool f = false;
-	for(int i = 0; i < pageTableSize; ++i){
-		//printf("%d\t%d\t%d\n",pageTable[i].virtualPage,pageTable[i].physicalPage,pageTable[i].valid);
-		if(pageTable[i].valid && vpn == pageTable[i].virtualPage){
-			//printf("va:%d  vpn : %d   ppn : %d\n",virtAddr,vpn,pageTable[i].physicalPage);
-			entry = &pageTable[i];
-			f = true;
-			break;
-		}
-	}
-	
-	if(!f) {
-		//currentThread->Finish();
-		
-printf("\n=============va:%d , vpn:%d=============\n",virtAddr,vpn);
-		DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
-			virtAddr, pageTableSize);
-	    return PageFaultException;
-	}
 
-	
-#else
-
-
-    
-    if (tlb == NULL) {		// => page table => vpn is index into table
-	
-	if (vpn >= pageTableSize) {
-		
-		printf("virtAddr : %d ,vpn: %d ,page table size:%d \n",virtAddr,vpn,pageTableSize);
-	    DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
-			virtAddr, pageTableSize);
-	    return AddressErrorException;
-	} else if (!pageTable[vpn].valid) {
-	    DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
-			virtAddr, pageTableSize);
-	    return PageFaultException;
-	}
-	entry = &pageTable[vpn];
-
-/*
+    if (tlb == NULL) { // => page table => vpn is index into table
+#ifndef INVERTED_PAGETABLE
+        if (vpn >= pageTableSize) {
+            DEBUG('a', "virtual page # %d too large for page table size %d!\n",
+                  virtAddr, pageTableSize);
+            return AddressErrorException;
+        } else if (!pageTable[vpn].valid) {
+            DEBUG('a', "virtual page # %d is invalid!\n");
+            return PageFaultException;
+        }
+#else // Here, vpn represent ppn
         if (vpn >= pageTableSize) {
             DEBUG('a', "virtual page # %d too large for page table size %d!\n",
                   virtAddr, pageTableSize);
@@ -266,47 +237,23 @@ printf("\n=============va:%d , vpn:%d=============\n",virtAddr,vpn);
             DEBUG('a', "virtual page # %d is invalid!\n");
             return PageFaultException;
         } else if (!(pageTable[vpn].threadId == currentThread->getThreadId())) {
-			printf("pageTable[vpn].threadId:%d == currentThread->getThreadId():%d\n",pageTable[vpn].threadId , currentThread->getThreadId());
-            ASSERT(FALSE);
+            ASSERT_MSG(FALSE, "A thread is accessing other thread's address space!");
         }
+#endif
         entry = &pageTable[vpn];
-	*/
-    } 
-	else {
-		
-	#ifdef USE_TLB
-
+    } else { // => tlb
         for (entry = NULL, i = 0; i < TLBSize; i++)
-    	    if (tlb[i].valid && (tlb[i].virtualPage == vpn)) {
-				entry = &tlb[i];			// FOUND!
-				//----------Lab 2 TLB -------------
-				TLBHit++;
-				tlb[i].count = 1;
-				//---------------------------------
-				break;
-	    }
-	if (entry == NULL) {				// not found
-		//------------------Lab2 TLB----------------
-		TLBMiss++;
-		for(int i = 0; i < TLBSize;++i){
-			 if (tlb[i].valid) {
-				tlb[i].count ++;
-			}
-
-		}
-		//-----------------------------------------
-		
-    	    DEBUG('a', "*** no valid TLB entry found for this virtual page!\n");
-    	    return TLBException;		// really, this is a TLB fault,
-						// the page may be in memory,
-						// but not in the TLB
-	}
-
-	#endif
-	
+            if (tlb[i].valid && (tlb[i].virtualPage == vpn)) {
+                entry = &tlb[i]; // FOUND!
+                break;
+            }
+        if (entry == NULL) { // not found
+            DEBUG('a', "*** no valid TLB entry found for this virtual page!\n");
+            return PageFaultException; // really, this is a TLB fault,
+                                       // the page may be in memory,
+                                       // but not in the TLB
+        }
     }
-
-#endif  
 
     if (entry->readOnly && writing) {	// trying to write to a read-only page
 	DEBUG('a', "%d mapped read-only at %d in TLB!\n", virtAddr, i);
@@ -326,7 +273,5 @@ printf("\n=============va:%d , vpn:%d=============\n",virtAddr,vpn);
     *physAddr = pageFrame * PageSize + offset;
     ASSERT((*physAddr >= 0) && ((*physAddr + size) <= MemorySize));
     DEBUG('a', "phys addr = 0x%x\n", *physAddr);
-	//printf("pageFrame = %d\n", pageFrame);
-
     return NoException;
 }

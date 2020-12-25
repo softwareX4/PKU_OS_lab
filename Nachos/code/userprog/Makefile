@@ -9,7 +9,7 @@
 # All rights reserved.  See copyright.h for copyright notice and limitation 
 # of liability and disclaimer of warranty provisions.
 
-DEFINES = -DUSER_PROGRAM -DFILESYS_NEEDED -DFILESYS_STUB  -DINVERTED_PAGETABLE #-DUSE_PREEMPTIVE   -DUSE_TLB -DUSE_BITMAP -DUSE_PAGE 
+DEFINES = -DUSER_PROGRAM -DFILESYS_NEEDED -DFILESYS_STUB #-DINVERTED_PAGETABLE #-DUSE_PREEMPTIVE   -DUSE_TLB -DUSE_BITMAP   -DUSE_PAGE
 INCPATH = -I../bin -I../filesys -I../userprog -I../threads -I../machine
 HFILES = $(THREAD_H) $(USERPROG_H)
 CFILES = $(THREAD_C) $(USERPROG_C)

@@ -274,11 +274,10 @@ FileSystem::Create(char *name, int initialSize)
 
 OpenFile *
 FileSystem::Open(char *name)
-{ 
+{   
     Directory *directory ;
     OpenFile *openFile = NULL;
     int sector;
-
     DEBUG('f', "Opening file %s\n", name);
 #ifndef MULTI_LEVEL_DIR
     directory = new Directory(NumDirEntries);
@@ -293,7 +292,9 @@ FileSystem::Open(char *name)
     sector = directory->Find(name); 
     if (sector >= 0) 		
 	openFile = new OpenFile(sector);	// name was found in directory 
+
     delete directory;
+
     return openFile;				// return NULL if not found
 }
 

@@ -81,7 +81,7 @@ OpenFile::Seek(int position)
 int
 OpenFile::Read(char *into, int numBytes)
 {
-    synchDisk -> PlusReader(hdr->getHeaderSector());
+    //synchDisk -> PlusReader(hdr->getHeaderSector());
 
    int result = ReadAt(into, numBytes, seekPosition);
 
@@ -89,19 +89,19 @@ OpenFile::Read(char *into, int numBytes)
 
    seekPosition += result;
 
-   synchDisk -> MinusReader(hdr->getHeaderSector());
+  // synchDisk -> MinusReader(hdr->getHeaderSector());
    return result;
 }
 
 int
 OpenFile::Write(char *into, int numBytes)
 {
-    synchDisk -> BeginWriter(hdr->getHeaderSector());
+    //synchDisk -> BeginWriter(hdr->getHeaderSector());
    int result = WriteAt(into, numBytes, seekPosition);
    currentThread -> Yield();
    seekPosition += result;
    
-    synchDisk -> EndWriter(hdr->getHeaderSector());
+   // synchDisk -> EndWriter(hdr->getHeaderSector());
    return result;
 }
 
@@ -179,6 +179,7 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
     char *buf;
  
     // Lab5: dynamic allocate file size
+    /*
     if (position + numBytes > fileLength) {
         BitMap *freeMap = new BitMap(NumSectors);
         OpenFile* freeMapFile = new OpenFile(FreeMapSector);
@@ -189,7 +190,7 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
         delete freeMapFile;
         fileLength = hdr->FileLength();
     }
-
+*/
 
     if ((numBytes <= 0) || (position >= fileLength))
 	return 0;				// check request

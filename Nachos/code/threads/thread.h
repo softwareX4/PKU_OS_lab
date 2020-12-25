@@ -125,6 +125,7 @@ class Thread {
     void setUsedTime(int ust) { usedTime = ust;}
 
 
+
     void Print() ;
   private:
     // some of the private data for this class is listed above
@@ -146,6 +147,7 @@ class Thread {
 					// Used internally by Fork()
 
 #ifdef USER_PROGRAM
+#define FileNameMaxLength 9 // originally define in filesys/directory.h
 // A thread running a user program actually has *two* sets of CPU registers -- 
 // one for its state while executing user code, one for its state 
 // while executing kernel code.
@@ -157,6 +159,7 @@ class Thread {
     void RestoreUserState();		// restore user-level register state
 
     AddrSpace *space;			// User code this thread is running.
+    char fileName[FileNameMaxLength + 1];
 #endif
 };
 
