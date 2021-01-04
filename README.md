@@ -8,7 +8,7 @@
   - [thread](./Notes/code/threads/thread.md)
   - [schedule](./Notes/code/threads/scheduler.md)
   - [addrspace](./Notes/code/userprog/addrspace.md)
-  - [syscall](./Notes/code/threads/syscall.md)
+  - [syscall](./Notes/code/userprog/syscall.md)
 - [Nachos问题与答案](./Notes/Nachos问题与答案.md)
   
 - 实验报告
