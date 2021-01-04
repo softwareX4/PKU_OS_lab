@@ -16,7 +16,7 @@
   - [Lab02_VirtualMemory](./Lab/Lab02_VirtualMemory/README.md)
   - [Lab03_SynchronizationMechanism](./Lab/Lab03_SynchronizationMechanism/README.md)
   - [Lab04_FileSystem](./Lab/Lab04_FileSystem/README.md)
-  - [Lab05_SytemCall](./Lab/Lab05_SytemCall/README.md)
+  - [Lab05_SytemCall](./Lab/Lab05_SystemCall/README.md)
   - [Lab06_Shell](./Lab/Lab06_Shell/README.md) 
 
   
