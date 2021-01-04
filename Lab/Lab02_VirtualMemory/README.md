@@ -66,6 +66,7 @@ Nachos系统的内存分配必须在用户程序载入内存时一次性完成�
 ```
 
 **注意**
+
 在<code>test/sort.c</code>中没有实现Exit系统调用，为了方便之后的实验，这里先对其简单实现。
 Exit系统调用在<code>userprog/syscall.h</code>中定义，而在<code>userprog/exception.cc</code>中实现，在处理异常之后要PC+4。
 ```c
@@ -117,11 +118,14 @@ TLB机制流程为：根据请求的虚拟页号，在TLB中查找
 
 
 #### FIFO
+
 **基本思想**
+
 当需要淘汰一个页面时，总是选择驻留主存时间最长的页面进行淘汰，即先进入主存的页面先淘汰。
 
 
 **具体实现**
+
 每次把移除TLB的首项，并把后面的项依次前移:
 ```c
 
@@ -149,12 +153,17 @@ void TLBAlgoFIFO(TranslationEntry page)
 ```
 
 **测试结果**
+
 ![](./.img/FIFO.png)
 
  #### LRU
+
 **基本思想**
+
 淘汰最后一次访问时间距离当前时间间隔最长的页面。
+
 **具体实现**
+
 给<code>machine/translate.h</code> 的 TranslationEntry增加一个count位，表示新旧，每次置换值最大的项。
 - TLB命中
 所在项赋值为1，tlb[i].count= 1；
@@ -218,6 +227,7 @@ void TLBAlgoLRU(TranslationEntry page){
 ```
 
 **测试结果**
+
 ![](./.img/LRU.png) 
 
 ## 分页式内存管理
@@ -229,6 +239,7 @@ void TLBAlgoLRU(TranslationEntry page){
 设计并实现一个全局性的数据结构（如空闲链表、位图等）来进行内存的分配和回收，并记录当前内存的使用状态。  
 
 **思路**
+
 使用位图将内存划分为页。
 对应于每个页的是位图中的一个位，仅当该页空闲时为零（0），仅当该页被占用时为一（1）
 直接使用Nachos内部实现的BitMap类完成。
@@ -272,6 +283,7 @@ Machine::Machine(bool debug)
     #endif
 ```
 **测试结果**
+
 与Excercise 5 一起测试。
 
 
@@ -356,6 +368,8 @@ ExceptionType Machine::Translate(int virtAddr, int* physAddr, int size, bool wri
 
 
 **测试结果**
+
+
 根据需求要测试一个线程结束时地址空间的回收情况，选择Lab1中实现的基于优先级的抢占式调度算法，在Lab2中，为了方便使用抢占式，我在<code>thread/MakeFile</code>中增加了-DUSE_PREEMPTIVE参数标志是否开启，并修改了相关代码。
 在<code>progtest.cc</code>StartProcess()中Fork一个新线程，并为其分配地址空间。
 ```c
@@ -499,6 +513,7 @@ StartProcess(char *filename)
  注意，为了方便这里只开启了一个线程，若要开启多个线程，需要为每个线程都建立virtual_memory，要注意文件名重复问题。
 
  **测试结果**
+
  ![](./.img/lazy.png)
  可以看到在每次缺页后的中断处理，页表发生置换。
 
@@ -511,6 +526,7 @@ StartProcess(char *filename)
 多级页表的缺陷在于页表的大小与虚拟地址空间的大小成正比，为了节省物理内存在页表存储上的消耗，请在Nachos系统中实现倒排页表。
 
 **基本思路**
+
 倒排页表是从物理地址开始建立映射.
 在MakeFile中设置INVERTED_PAGETABLE标志是否开启倒排页表，此时bitmap和倒排页表不能共存，关闭USE_BITMAP标志
 只用保留machine的一张页表，增加线程id数据成员
@@ -619,6 +635,7 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 ```
 
 **测试结果**
+
 <code>
 Initialized memory for thread "main".
 User program exit with status 87

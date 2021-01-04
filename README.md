@@ -9,7 +9,8 @@
   - [schedule](./Notes/code/threads/scheduler.md)
   - [addrspace](./Notes/code/userprog/addrspace.md)
   - [syscall](./Notes/code/threads/syscall.md)
-
+- [Nachos问题与答案](./Notes/Nachos问题与答案.md)
+  
 - 实验报告
   - [Lab01_ThreadMechanism&Scheduleling](./Lab/Lab01_ThreadMechanism&Scheduleling/README.md)
   - [Lab02_VirtualMemory](./Lab/Lab02_VirtualMemory/README.md)

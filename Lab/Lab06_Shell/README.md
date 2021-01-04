@@ -8,6 +8,7 @@ Lab7 shell实现 实习说明
 
 
 **基本流程**
+
 <code>test/shell.c</code>
 ```c
 
@@ -161,6 +162,7 @@ main()
 ```
 
 **测试结果**
+
 实现命令ls、pwd、mkdir、touch、rm、echo、cat
 |  命令   |     功能     | 
 | :-----: | :----------: | 

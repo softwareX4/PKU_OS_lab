@@ -280,6 +280,7 @@ if (type == SC_Read) { // int Read(char *buffer, int size, OpenFileId id);
 编写并运行用户程序，调用练习2中所写系统调用，测试其正确性。
 
 **基本步骤**
+
 - 创建并打开文件“test.txt”
 - 写入字符串
 - 读取文件内容
@@ -326,7 +327,9 @@ int main() {
     Exit(numBytes);
 }
 ```
+
 **添加用户程序**
+
 - 修改test/MakeFile
 ```c
 all: halt shell matmult sort filesyscall
@@ -337,7 +340,9 @@ filesyscall:filesyscall.o start.o
 	../bin/coff2noff filesyscall.coff filesyscall
 
 ```
+
 **测试结果**
+
 ![](.img/filesyscall.png)
 
 ### 三、执行用户程序相关的系统调用
