@@ -61,6 +61,7 @@ extern "C" {
 int atoi(const char *str);
 double atof(const char *str);
 int abs(int i);
+int system(const char *command); 
 
 #include <stdio.h>		// for printf, fprintf
 #include <string.h>		// for DEBUG, etc.

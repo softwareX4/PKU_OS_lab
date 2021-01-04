@@ -29,7 +29,7 @@
 #define SC_Close	8
 #define SC_Fork		9
 #define SC_Yield	10
-
+#define SC_Shell    11
 #ifndef IN_ASM
 
 /* The system call interface.  These are the operations the Nachos
@@ -123,6 +123,9 @@ void Fork(void (*func)());
  * or not. 
  */
 void Yield();		
+
+//Lab 6 shell
+void Shell(char *cmd);
 
 #endif /* IN_ASM */
 

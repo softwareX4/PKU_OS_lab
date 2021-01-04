@@ -41,7 +41,6 @@ StartProcess(char *filename)
     }
     space = new AddrSpace(executable);    
     currentThread->space = space;
-    printf("cur thread name: %s \n",currentThread->getName());
 
     delete executable;			// close file
 
@@ -65,8 +64,8 @@ StartProcess(char *filename)
     //t->Finish();
     printf("======return to main==========\n");
 */
-    currentThread->space->InitRegisters();		
-    currentThread->space->RestoreState();
+    space->InitRegisters();		
+    space->RestoreState();
      machine->Run();			// jump to the user progam
     ASSERT(FALSE);			// machine->Run never returns;
 					// the address space exits

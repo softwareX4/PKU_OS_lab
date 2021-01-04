@@ -105,7 +105,6 @@ Machine::OneInstruction(Instruction *instr)
 	}
 	//return;			// exception occurred
 
-
     instr->value = raw;
     instr->Decode();
 
@@ -537,7 +536,7 @@ Machine::OneInstruction(Instruction *instr)
 	break;
     	
       case OP_SYSCALL:
-	RaiseException(SyscallException, 0);
+	RaiseException(SyscallException, 0); 
 	return; 
 	
       case OP_XOR:

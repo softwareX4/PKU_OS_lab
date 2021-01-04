@@ -40,6 +40,7 @@ void PrintTLBStatus(); // TLB debug usage
 void AddressSpaceControlHandler(int type);
 void FileSystemHandler(int type);
 void UserLevelThreadsHandler(int type);
+char *getCmdFromAddress(int address,char *name);
 //----------------------------------------------------------------------
 // ExceptionHandler
 // 	Entry point into the Nachos kernel.  Called when a user program
@@ -109,6 +110,19 @@ ExceptionHandler(ExceptionType which)
             // User-level Threads System Calls
             UserLevelThreadsHandler(type);
         }
+        
+         else if (type == SC_Shell)//run Linux command
+        {
+            
+            int addr = machine->ReadRegister(4);
+            
+        DEBUG('S', COLORED(GREEN, "Received Shell syscall (r4 = %d): "), addr);
+            char name[60];
+             getCmdFromAddress(addr,name);
+            system(name);
+            IncrementPCRegs();
+        }
+        
 
         // Increment the Program Counter before returning.
        // IncrementPCRegs();
@@ -120,14 +134,14 @@ ExceptionHandler(ExceptionType which)
 }
 
 
-
 void IncrementPCRegs(void) {
     // Debug usage
-    machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+    int curPC = machine->ReadRegister(PCReg);
+    machine->WriteRegister(PrevPCReg, curPC);
 
     // Advance program counter
-    machine->WriteRegister(PCReg, machine->ReadRegister(PCReg) + sizeof(int));
-    machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+sizeof(int));
+    machine->WriteRegister(PCReg, curPC + 4);
+    machine->WriteRegister(NextPCReg, curPC+8);
 }
 
 
@@ -391,7 +405,9 @@ void FileSystemHandler(int type)
 
         DEBUG('S', COLORED(GREEN, "File \"%s\" opened.\n"), name);
         machine->WriteRegister(2, (OpenFileId)openFile); // return result
-    } else if (type == SC_Close) { // void Close(OpenFileId id);
+    }
+     else if (type == SC_Close) { 
+         // void Close(OpenFileId id);
         OpenFileId id = machine->ReadRegister(4); // OpenFile object id
         DEBUG('S', COLORED(GREEN, "Received Close syscall (r4 = %d): "), id);
 
@@ -400,16 +416,25 @@ void FileSystemHandler(int type)
 
         DEBUG('S', COLORED(GREEN, "File has closed.\n"));
         // machine->WriteRegister(2, 0); // successfully closed
-    } else if (type == SC_Read) { // int Read(char *buffer, int size, OpenFileId id);
+    } 
+    else if (type == SC_Read) { 
+        // int Read(char *buffer, int size, OpenFileId id);
         int address = machine->ReadRegister(4); // memory starting position
         int size = machine->ReadRegister(5); // read "size" bytes
         OpenFileId id = machine->ReadRegister(6); // OpenFile object id
         DEBUG('S', COLORED(GREEN, "Received Read syscall (r4 = %d, r5 = %d, r6 = %d): "), address, size, id);
 
         OpenFile* openFile = (OpenFile*)id; // transfer id back to OpenFile
-        char* buffer = new char[size];
-        int numBytes = openFile->Read(buffer, size);
-        for (int i = 0; i < numBytes; i++) { // each time write one byte
+        char buffer[size];
+        int numBytes ;
+        if (id == ConsoleInput)
+            for (int i = 0; i < size; ++i)
+                buffer[i] = getchar();
+        else{
+         numBytes = openFile->Read(buffer, size);
+       
+        } 
+        for (int i = 0; i < size; i++) { // each time write one byte
             bool success = machine->WriteMem(address + i, 1, (int)buffer[i]);
             if (!success) { // not sure if this is necessary
                 i--;
@@ -417,7 +442,9 @@ void FileSystemHandler(int type)
         }
         DEBUG('S', COLORED(GREEN, "Read %d bytes into buffer.\n"), numBytes);
         machine->WriteRegister(2, numBytes); // Return the number of bytes actually read
-    } else if (type == SC_Write) { // void Write(char *buffer, int size, OpenFileId id);
+    }
+     else if (type == SC_Write) { 
+         // void Write(char *buffer, int size, OpenFileId id);
         int address = machine->ReadRegister(4); // memory starting position
         int size = machine->ReadRegister(5); // read "size" bytes
         OpenFileId id = machine->ReadRegister(6); // OpenFile object id
@@ -430,11 +457,15 @@ void FileSystemHandler(int type)
                 i--;
             }
         }
+        if (id == ConsoleOutput)
+            for (int i = 0; i < size; ++i)
+                putchar(buffer[i]);
+        else{
         OpenFile* openFile = (OpenFile*)id; // transfer id back to OpenFile
         int numBytes = openFile->Write(buffer, size);
-
         DEBUG('S', COLORED(GREEN, "Write %d bytes into file.\n"), numBytes);
         machine->WriteRegister(2, numBytes); // Return the number of bytes actually write
+        }
     }
 
 }
@@ -449,12 +480,25 @@ char* getFileNameFromAddress(int address,char *name) {
         bool success = machine->ReadMem(address + position, 1, &data);
         ASSERT_MSG(success, "Fail to read memory in Create syscall");
         name[position++] = (char)data;
-
         ASSERT_MSG(position <= FileNameMaxLength, "Filename length too long")
     } while(data != '\0');
     name[position] = '\0';
     return name;
 }
+// Helper function to get file name using ReadMem for Create and Open syscall
+char* getCmdFromAddress(int address,char *name) {
+    int position = 0;
+    int data;
+    //char name[FileNameMaxLength + 1];
+    do {
+        // each time read one byte
+        bool success = machine->ReadMem(address + position, 1, &data);
+        ASSERT_MSG(success, "Fail to read memory in Shell syscall");
+        name[position++] = (char)data;
+    } while(data != 0);
+    return name;
+}
+
 
 //----------------------------------------------------------------------
 // UserLevelThreadsHandler
