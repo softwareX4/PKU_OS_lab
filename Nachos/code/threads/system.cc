@@ -22,7 +22,8 @@ Timer *timer;				// the hardware timer device,
 bool tFlag[MAX_THREAD_NUM];   //the spare tid
 
 Thread * allThread[MAX_THREAD_NUM];    //all thread status  
-
+//-----------Lab 7----------------
+Message messages[MAX_MESSAGE];
 
 #ifdef FILESYS_NEEDED
 FileSystem  *fileSystem;
@@ -106,6 +107,11 @@ Initialize(int argc, char **argv)
     char* debugArgs = "";
     bool randomYield = FALSE;
     bool roundRobin = FALSE;
+
+    for(int i = 0; i < MAX_MESSAGE;++i){
+        messages[i].valid = FALSE;
+    }
+
 
 
 #ifdef USER_PROGRAM

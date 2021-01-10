@@ -1,4 +1,4 @@
-# NOTE: this is a GNU Makefile.  You must use "gmake" rather than "make".
+#nullTE: this is a GNU Makefile.  You must use "gmake" rather than "make".
 #
 # Makefile for the threads assignment.  The threads assignment must
 #  be done first!
@@ -7,7 +7,7 @@
 # All rights reserved.  See copyright.h for copyright notice and limitation 
 # of liability and disclaimer of warranty provisions.
  
-DEFINES = -DTHREADS -DUSE_SEMAPHORE  -DUSE_W_R  -DFILESYS#-DUSE_PREEMPTIVE
+DEFINES = -DTHREADS #-DUSE_PREEMPTIVE#-DUSE_SEMAPHORE  -DUSE_W_R  -DFILESYS
 INCPATH = -I../threads -I../machine 
 HFILES = $(THREAD_H)
 CFILES = $(THREAD_C)

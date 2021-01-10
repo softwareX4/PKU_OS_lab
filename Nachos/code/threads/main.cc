@@ -93,13 +93,21 @@ main(int argc, char **argv)
 	
     DEBUG('t', "Entering main");
     (void) Initialize(argc, argv); 
-    
+   
+     
 #ifdef THREADS
+
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
+
       argCount = 1;
       switch (argv[0][1]) {
       case 'q':
         testnum = atoi(argv[1]);
+        argCount++;
+        break;
+        //---------Lab 7------------
+      case 'm':
+        MessageTest(*(argv + 1));
         argCount++;
         break;
       default:
@@ -107,8 +115,7 @@ main(int argc, char **argv)
         break;
       }
     }
-
-    ThreadTest();
+    //ThreadTest();
 #endif
 
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
@@ -117,6 +124,8 @@ main(int argc, char **argv)
             printf (copyright);
         if (!strcmp(*argv, "-Q")) // be quiet (disable dummy machine message)
             VERBOSE = FALSE;
+         
+
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);

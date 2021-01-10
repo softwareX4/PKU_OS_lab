@@ -148,12 +148,9 @@ Thread::Fork(VoidFunctionPtr func, void *arg)
 {
     DEBUG('t', "Forking thread \"%s\" with func = 0x%x, arg = %d\n",
 	  name, (int) func, (int*) arg);
-    
     StackAllocate(func, arg);
 
     IntStatus oldLevel = interrupt->SetLevel(IntOff);
-
-
     scheduler->ReadyToRun(this);	// ReadyToRun assumes that interrupts 
 					// are disabled!
 
@@ -397,3 +394,45 @@ Thread::RestoreUserState()
 
 #endif
 
+//---------------Lab 7------------------------------
+
+bool 
+Thread::Send(char *content,int destination){ 
+
+    int count;
+    for(count =0;count < MAX_CONTENT;++count){
+        if(content[count] == '\0')
+        break;
+    }
+    ++count;
+    ASSERT(count > 1 && count <= MAX_CONTENT);
+    for(int i = 0; i < MAX_MESSAGE;++i){
+        //found
+        if(!messages[i].valid){
+            messages[i].valid = TRUE;
+            messages[i].destination = destination;
+            for(int j = 0; j < count;++j){
+                messages[i].content[j] = content[j];
+            }
+            messages[i].cnt = count;
+            messages[i].source = threadId;
+            return TRUE;
+        }
+
+    }
+    return FALSE;
+}
+
+int 
+Thread::Receive(char * content,int source){
+    for(int i = 0; i < MAX_MESSAGE;++i){
+        if(messages[i].valid && messages[i].destination == threadId){
+                source = messages[i].source;
+            for(int j = 0; j < messages[i].cnt;++j){
+                content[j] = messages[i].content[j];
+            }
+            return messages[i].cnt;
+        }
+    }
+    return 0;
+}

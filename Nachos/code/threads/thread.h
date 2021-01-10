@@ -71,6 +71,21 @@ enum ThreadStatus { JUST_CREATED, RUNNING, READY, BLOCKED };
 extern void ThreadPrint(int arg);	 
 extern void TS();
 
+//-----------------------------Lab 7------------------------------
+#define MAX_CONTENT 20
+class Message{
+  public:
+  int source;          //send thread id
+  int cnt;            //length of message (include '\0')
+  bool valid;         //is message valid
+  int destination;    //recieve thread id 
+  char content[MAX_CONTENT];   //message content 
+
+};
+
+
+//-------------------------------------------------------------------
+
 // The following class defines a "thread control block" -- which
 // represents a single thread of execution.
 //
@@ -127,6 +142,13 @@ class Thread {
 
 
     void Print() ;
+
+    //--------Lab7-------------
+    bool Send(char *content,int destination); 
+    int Receive(char * content,int source);
+
+
+    //-------------------------
   private:
     // some of the private data for this class is listed above
     

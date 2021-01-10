@@ -407,4 +407,23 @@ ThreadTest()
     }
 }
 
+
+
+    //--------------Lab 7-------------------
+    void MessageHelper(int which){
+        char content[MAX_MESSAGE];
+        int source ;
+        ASSERT(currentThread->Receive(content,source) > 0);
+        printf("Thread ID=%d received \"%s \" from Thread ID=%d \n",currentThread->getThreadId(),content,source);
+
+    }
+     void MessageTest(char *content){
+         Thread *t = new Thread("MessageTest");
+         t->Fork(MessageHelper,(void*)0);
+         ASSERT(currentThread->Send(content,t->getThreadId()));
+        printf("Thread ID=%d send \"%s \" to Thread ID=%d \n",currentThread->getThreadId(),content,t->getThreadId());
+       
+     }
+
+
  
