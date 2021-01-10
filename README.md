@@ -18,6 +18,6 @@
   - [Lab04_FileSystem](./Lab/Lab04_FileSystem/README.md)
   - [Lab05_SytemCall](./Lab/Lab05_SystemCall/README.md)
   - [Lab06_Shell](./Lab/Lab06_Shell/README.md) 
-  - [Lab07_IPC Mechanisms](./Lab/Lab07_IPC Mechanisms/README.md)
+  - [Lab07_IPCMechanisms](./Lab/Lab07_IPCMechanisms/README.md)
   
 
